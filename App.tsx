@@ -344,7 +344,8 @@ const App: React.FC = () => {
         onRefresh={handleManualRefresh}
       />
       
-      <main className="pt-20 pb-24 max-w-md mx-auto px-0">
+      {/* Reduced pt-20 to pt-16 to remove the large gap at the top */}
+      <main className="pt-16 pb-24 max-w-md mx-auto px-0">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-[70vh]">
             <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>

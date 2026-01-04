@@ -362,7 +362,11 @@ const App: React.FC = () => {
             initialVideo={selectedShort.video}
             videoList={selectedShort.list}
             interactions={interactions}
-            onClose={() => setSelectedShort(null)}
+            onClose={() => {
+              setSelectedShort(null);
+              // Trigger refresh when shorts overlay is closed
+              handleManualRefresh();
+            }}
             onLike={handleLikeToggle}
             onDislike={handleDislike}
             onCategoryClick={(cat) => {

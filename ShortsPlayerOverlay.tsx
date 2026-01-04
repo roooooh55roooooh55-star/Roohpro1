@@ -113,9 +113,10 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black z-[500] flex flex-col overflow-hidden">
-      <div className="absolute top-12 right-6 z-[600]">
-        <button onClick={onClose} className="p-4 rounded-2xl bg-black/50 backdrop-blur-xl text-red-600 border-2 border-red-600 shadow-[0_0_20px_#dc2626] active:scale-75 transition-all">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
+      {/* Updated Close Button Position and Size */}
+      <div className="absolute top-5 right-4 z-[600]">
+        <button onClick={onClose} className="p-2 rounded-full bg-black/60 backdrop-blur-xl text-red-600 border border-red-600 shadow-[0_0_15px_#dc2626] active:scale-75 transition-all hover:bg-black/80">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
 

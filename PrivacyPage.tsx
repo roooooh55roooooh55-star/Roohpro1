@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface PrivacyPageProps {
   onOpenAdmin: () => void;
@@ -9,6 +9,27 @@ interface PrivacyPageProps {
 const PrivacyPage: React.FC<PrivacyPageProps> = ({ onOpenAdmin, onBack }) => {
   const LOGO_URL = "https://i.top4top.io/p_3643ksmii1.jpg";
   const EXTERNAL_URL = "https://www.termsfeed.com/live/privacy-policy-dark-hadiqa";
+  
+  // State to track clicks for developer access
+  const [clickCount, setClickCount] = useState(0);
+
+  // Reset click count if too much time passes (security measure)
+  useEffect(() => {
+    if (clickCount > 0) {
+      const timer = setTimeout(() => setClickCount(0), 2000); // Reset after 2 seconds of inactivity
+      return () => clearTimeout(timer);
+    }
+  }, [clickCount]);
+
+  const handleDevClick = () => {
+    const newCount = clickCount + 1;
+    setClickCount(newCount);
+    
+    if (newCount >= 5) {
+      onOpenAdmin();
+      setClickCount(0); // Reset after success
+    }
+  };
 
   return (
     <div className="flex flex-col gap-8 pb-40 text-right" dir="rtl">
@@ -55,15 +76,17 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onOpenAdmin, onBack }) => {
          </svg>
       </button>
 
-      <div className="mt-12 flex flex-col items-center">
+      <div className="mt-12 flex flex-col items-center select-none">
          <div 
-           onClick={onOpenAdmin}
-           className="w-full h-24 opacity-0 cursor-default"
-           title="Developer Access"
+           onClick={handleDevClick}
+           className="w-full h-24 opacity-0 cursor-default active:cursor-wait"
+           title="Developer Access (5 Clicks)"
          >
          </div>
          <div className="w-12 h-1 bg-white/5 rounded-full"></div>
-         <p className="text-[8px] text-gray-800 font-black uppercase tracking-[0.5em] mt-4">System ID: 0x5030775-GATE</p>
+         <p className="text-[8px] text-gray-800 font-black uppercase tracking-[0.5em] mt-4">
+            System ID: 0x5030775-GATE {clickCount > 0 ? `[${clickCount}/5]` : ''}
+         </p>
       </div>
     </div>
   );

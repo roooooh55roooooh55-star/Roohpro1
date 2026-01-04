@@ -239,8 +239,21 @@ const ResumeNotification: React.FC<{ video: Video, onPlay: () => void, onClose: 
   useEffect(() => {
      const h = window.innerHeight;
      const w = window.innerWidth;
-     const topVal = parseFloat(pos.top) / 100 * h;
-     const leftVal = parseFloat(pos.left) / 100 * w;
+     
+     // Adjusted calculation to prevent overflow
+     let topVal = (parseFloat(pos.top) / 100) * h;
+     let leftVal = (parseFloat(pos.left) / 100) * w;
+
+     // Boundary Checks: Ensure the popup stays within the viewport
+     const popupWidth = 280; 
+     const popupHeight = 100;
+     const padding = 10;
+
+     if (leftVal + popupWidth > w) leftVal = w - popupWidth - padding;
+     if (leftVal < padding) leftVal = padding;
+     if (topVal + popupHeight > h) topVal = h - popupHeight - padding;
+     if (topVal < padding + 50) topVal = padding + 50; // Respect header area
+
      setPosition({ x: leftVal, y: topVal });
      setBasePos({ x: leftVal, y: topVal });
   }, [pos]);
@@ -251,6 +264,13 @@ const ResumeNotification: React.FC<{ video: Video, onPlay: () => void, onClose: 
     const timer3 = setTimeout(() => { if (!isDragging) onClose(); }, 8500);
     return () => { clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3); };
   }, [onClose, isDragging]);
+
+  const handlePermanentDismiss = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    sessionStorage.setItem('hadiqa_dismiss_resume', 'true');
+    setIsVisible(false);
+    setTimeout(onClose, 300);
+  };
 
   if (!video) return null;
 
@@ -306,6 +326,14 @@ const ResumeNotification: React.FC<{ video: Video, onPlay: () => void, onClose: 
             boxShadow: isDragging ? `0 0 40px 5px ${video.is_trending ? '#ef4444' : '#facc15'}, 0 0 80px 10px rgba(255,255,255,0.2)` : ''
         }}
         >
+        {/* Close Button - Permanently Dismiss for Session */}
+        <button 
+            onClick={handlePermanentDismiss}
+            className="absolute -top-3 -left-3 z-[410] bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center border border-white/50 shadow-lg active:scale-90 transition-transform"
+        >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+
         <div className="w-16 h-20 shrink-0 rounded-xl overflow-hidden border border-white/20 relative pointer-events-none">
             <video src={formatVideoSource(video)} muted autoPlay loop playsInline className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -486,11 +514,10 @@ const MainContent: React.FC<any> = ({
 
      const getUniqueBatch = (source: Video[], count: number): Video[] => {
         let available = source.filter(v => !usedIds.has(v.id));
-        if (available.length < count) {
-           const remainingCount = count - available.length;
-           const reused = source.filter(v => !available.includes(v)).slice(0, remainingCount);
-           available = [...available, ...reused];
-        }
+        
+        // STRICT MODE: Do not reuse videos. Prevents duplicates on screen.
+        // if (available.length < count) ... { removed logic }
+
         const selected = available.slice(0, count);
         selected.forEach(v => usedIds.add(v.id));
         return selected;
@@ -663,29 +690,37 @@ const MainContent: React.FC<any> = ({
       )}
 
       {/* Marquee 1 Shorts - Left to Right */}
-      <InteractiveMarquee videos={marqueeShorts1} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} />
+      {marqueeShorts1.length > 0 && <InteractiveMarquee videos={marqueeShorts1} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} />}
 
       {/* Marquee 1 Longs - Right to Left */}
       <div className="-mt-1"></div> 
-      <InteractiveMarquee videos={marqueeLongs1} onPlay={(v) => onPlayLong(v, longsOnly)} direction="right-to-left" interactions={interactions} />
+      {marqueeLongs1.length > 0 && <InteractiveMarquee videos={marqueeLongs1} onPlay={(v) => onPlayLong(v, longsOnly)} direction="right-to-left" interactions={interactions} />}
 
-      <SectionHeader title="المختار من القبو (شورتي)" color="bg-yellow-500" />
-      <div className="px-4 grid grid-cols-2 gap-3.5">
-        {featuredShorts1.map((v: any) => v && v.video_url && (
-          <div key={v.id} onClick={() => onPlayShort(v, shortsOnly)} className="aspect-[9/16] animate-in fade-in duration-500">
-            <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
+      {featuredShorts1.length > 0 && (
+        <>
+          <SectionHeader title="المختار من القبو (شورتي)" color="bg-yellow-500" />
+          <div className="px-4 grid grid-cols-2 gap-3.5">
+            {featuredShorts1.map((v: any) => v && v.video_url && (
+              <div key={v.id} onClick={() => onPlayShort(v, shortsOnly)} className="aspect-[9/16] animate-in fade-in duration-500">
+                <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
 
-      <SectionHeader title="أهوال حصرية مختارة" color="bg-red-600" />
-      <div className="px-4 space-y-3">
-        {featuredLongs1.map((v: any) => v && v.video_url && (
-          <div key={v.id} onClick={() => onPlayLong(v, longsOnly)} className="aspect-video w-full animate-in zoom-in-95 duration-500">
-            <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
+      {featuredLongs1.length > 0 && (
+        <>
+          <SectionHeader title="أهوال حصرية مختارة" color="bg-red-600" />
+          <div className="px-4 space-y-3">
+            {featuredLongs1.map((v: any) => v && v.video_url && (
+              <div key={v.id} onClick={() => onPlayLong(v, longsOnly)} className="aspect-video w-full animate-in zoom-in-95 duration-500">
+                <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
 
       {continueWatchingList.length > 0 && (
         <>
@@ -694,26 +729,46 @@ const MainContent: React.FC<any> = ({
         </>
       )}
 
-      <SectionHeader title="ومضات من الجحيم" color="bg-orange-500" />
-      <InteractiveMarquee videos={marqueeShorts2} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} />
+      {marqueeShorts2.length > 0 && (
+        <>
+          <SectionHeader title="ومضات من الجحيم" color="bg-orange-500" />
+          <InteractiveMarquee videos={marqueeShorts2} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} />
+        </>
+      )}
 
-      <SectionHeader title="حكايات القبور الطويلة" color="bg-emerald-500" />
-      <InteractiveMarquee videos={marqueeLongs2} onPlay={(v) => onPlayLong(v, longsOnly)} direction="right-to-left" interactions={interactions} />
+      {marqueeLongs2.length > 0 && (
+        <>
+          <SectionHeader title="حكايات القبور الطويلة" color="bg-emerald-500" />
+          <InteractiveMarquee videos={marqueeLongs2} onPlay={(v) => onPlayLong(v, longsOnly)} direction="right-to-left" interactions={interactions} />
+        </>
+      )}
 
-      <SectionHeader title="همسات الظلام (شورتي)" color="bg-indigo-500" />
-      <div className="px-4 grid grid-cols-2 gap-3.5">
-        {featuredShorts2.map((v: any) => v && v.video_url && (
-          <div key={`${v.id}-2`} onClick={() => onPlayShort(v, shortsOnly)} className="aspect-[9/16] animate-in fade-in duration-500">
-            <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
+      {featuredShorts2.length > 0 && (
+        <>
+          <SectionHeader title="همسات الظلام (شورتي)" color="bg-indigo-500" />
+          <div className="px-4 grid grid-cols-2 gap-3.5">
+            {featuredShorts2.map((v: any) => v && v.video_url && (
+              <div key={`${v.id}-2`} onClick={() => onPlayShort(v, shortsOnly)} className="aspect-[9/16] animate-in fade-in duration-500">
+                <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
 
-      <SectionHeader title="أرشيف الأهوال الأخير" color="bg-blue-600" />
-      <InteractiveMarquee videos={marqueeShorts3} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} />
+      {marqueeShorts3.length > 0 && (
+        <>
+          <SectionHeader title="أرشيف الأهوال الأخير" color="bg-blue-600" />
+          <InteractiveMarquee videos={marqueeShorts3} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} />
+        </>
+      )}
 
-      <SectionHeader title="الخروج من القبو" color="bg-white" />
-      <InteractiveMarquee videos={marqueeLongs3} onPlay={(v) => onPlayLong(v, longsOnly)} direction="right-to-left" interactions={interactions} />
+      {marqueeLongs3.length > 0 && (
+        <>
+          <SectionHeader title="الخروج من القبو" color="bg-white" />
+          <InteractiveMarquee videos={marqueeLongs3} onPlay={(v) => onPlayLong(v, longsOnly)} direction="right-to-left" interactions={interactions} />
+        </>
+      )}
 
       <div className="w-full h-8 bg-black flex items-center justify-center group relative border-y border-white/5 mt-4">
           <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest italic z-10">Vault Secure System</span>
@@ -738,7 +793,7 @@ const MainContent: React.FC<any> = ({
 
       {/* 3D Coming Soon Modal (Restored & Moved Higher) */}
       {show3DModal && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center pb-40 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShow3DModal(false)}>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center pb-80 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShow3DModal(false)}>
           <div className="bg-neutral-900/90 border border-cyan-500/50 p-8 rounded-[2rem] shadow-[0_0_50px_rgba(34,211,238,0.3)] text-center transform scale-100 relative overflow-hidden max-w-xs mx-4" onClick={e => e.stopPropagation()}>
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent animate-pulse"></div>
             <h2 className="text-3xl font-black text-white mb-2 italic drop-shadow-lg">تقنية 3D</h2>

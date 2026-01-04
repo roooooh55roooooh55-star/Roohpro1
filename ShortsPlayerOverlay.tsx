@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Video, UserInteractions } from './types';
 import { getDeterministicStats, formatBigNumber, LOGO_URL, formatVideoSource, NeonTrendBadge } from './MainContent';
+import { playNarrative, stopCurrentNarrative } from './elevenLabsManager';
 
 interface ShortsPlayerOverlayProps {
   initialVideo: Video;
@@ -34,13 +35,81 @@ const NeonLionIcon: React.FC<{ colorClass: string, isDownloading: boolean }> = (
   </svg>
 );
 
+const DynamicCaptions: React.FC<{ text: string, isActive: boolean, isShorts?: boolean }> = ({ text, isActive, isShorts = true }) => {
+  const [currentChunk, setCurrentChunk] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+  const chunkIndex = useRef(0);
+  
+  const chunks = useMemo(() => {
+    if (!text) return [];
+    const words = text.split(/\s+/);
+    const result = [];
+    for (let i = 0; i < words.length; i += 4) {
+      result.push(words.slice(i, i + 4).join(' '));
+    }
+    return result;
+  }, [text]);
+
+  useEffect(() => {
+    if (!isActive || chunks.length === 0) {
+      setIsVisible(false);
+      return;
+    }
+
+    chunkIndex.current = 0;
+    
+    const showNextChunk = () => {
+      if (chunkIndex.current >= chunks.length) {
+        setIsVisible(false);
+        return;
+      }
+
+      setCurrentChunk(chunks[chunkIndex.current]);
+      setIsVisible(true);
+
+      setTimeout(() => {
+        setIsVisible(false);
+        setTimeout(() => {
+          chunkIndex.current++;
+          showNextChunk();
+        }, 300); 
+      }, 2500); 
+    };
+
+    showNextChunk();
+  }, [chunks, isActive]);
+
+  if (chunks.length === 0) return null;
+
+  // Conditional Styling based on type
+  // Shorts: Bottom-Right (Above Title)
+  // Long: Bottom-Center
+  const containerPosition = isShorts 
+    ? "bottom-48 right-4 text-right items-end" 
+    : "bottom-16 left-1/2 -translate-x-1/2 text-center items-center";
+
+  return (
+    <div className={`absolute z-[100] w-full max-w-[80%] pointer-events-none flex flex-col ${containerPosition}`}>
+      <div 
+        className={`transition-all duration-500 ease-in-out transform ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95'}`}
+      >
+        <div className="bg-black/60 backdrop-blur-md border-2 border-cyan-400 px-6 py-3 rounded-2xl shadow-[0_0_20px_#22d3ee] flex items-center gap-3">
+             {/* Decorative Neon Dot */}
+             <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_10px_#22d3ee]"></div>
+             <span className="text-lg md:text-xl font-black text-white italic drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-relaxed tracking-wide">
+                {currentChunk}
+             </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({ 
   initialVideo, videoList, interactions, onClose, onLike, onDislike, onCategoryClick, onSave, onProgress, onDownload, isGlobalDownloading
 }) => {
-  // UseMemo guarantees this randomization runs only once when opened
   const randomizedList = useMemo(() => {
     const otherVideos = videoList.filter(v => v.id !== initialVideo.id);
-    // Fisher-Yates shuffle for true randomness
     for (let i = otherVideos.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [otherVideos[i], otherVideos[j]] = [otherVideos[j], otherVideos[i]];
@@ -52,27 +121,60 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
   const [isBuffering, setIsBuffering] = useState(true);
+  
+  // New State: Toggle Narrative Audio/Text
+  const [isNarrativeOn, setIsNarrativeOn] = useState(true);
 
-  // PRELOAD NEXT VIDEOS LOGIC
-  // Fetches the first 1.5MB (approx 5-10s) of the next 2 videos to ensure instant playback
+  // Stop audio when component unmounts
+  useEffect(() => {
+      return () => {
+          stopCurrentNarrative();
+      };
+  }, []);
+
+  // Manage Audio on Slide Change
+  useEffect(() => {
+    // 1. Always stop previous audio instantly when index changes
+    stopCurrentNarrative();
+
+    const currentVideo = randomizedList[currentIndex];
+    
+    // 2. Play new narrative if enabled AND toggle is ON
+    if (isNarrativeOn && currentVideo && currentVideo.read_narrative) {
+        // Short delay to let the video start buffering/playing
+        setTimeout(() => {
+             const textToRead = currentVideo.description || currentVideo.title;
+             if (textToRead) playNarrative(textToRead);
+        }, 500);
+    }
+  }, [currentIndex, randomizedList, isNarrativeOn]);
+
+  const handleToggleNarrative = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const newState = !isNarrativeOn;
+      setIsNarrativeOn(newState);
+      if (!newState) {
+          stopCurrentNarrative();
+      } else {
+           // Restart current narrative if turned back on
+           const currentVideo = randomizedList[currentIndex];
+           if (currentVideo && currentVideo.read_narrative) {
+               const textToRead = currentVideo.description || currentVideo.title;
+               if (textToRead) playNarrative(textToRead);
+           }
+      }
+  };
+
   useEffect(() => {
     const preloadNext = async () => {
         const nextIndices = [currentIndex + 1, currentIndex + 2];
-        
         for (const idx of nextIndices) {
             if (idx < randomizedList.length) {
                 const video = randomizedList[idx];
                 const url = formatVideoSource(video);
                 try {
-                    // This fetches the bytes into the browser disk cache
-                    // Next time the video tag requests it, it will be served from cache instantly
-                    await fetch(url, {
-                        headers: { 'Range': 'bytes=0-1500000' }, // 1.5MB Buffer
-                        mode: 'cors'
-                    });
-                } catch (e) {
-                    // Ignore errors, just optimization
-                }
+                    await fetch(url, { headers: { 'Range': 'bytes=0-1500000' }, mode: 'cors' });
+                } catch (e) {}
             }
         }
     };
@@ -85,10 +187,7 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
       setCurrentIndex(nextIdx);
       const container = containerRef.current;
       if (container) {
-        container.scrollTo({
-          top: nextIdx * container.clientHeight,
-          behavior: 'smooth'
-        });
+        container.scrollTo({ top: nextIdx * container.clientHeight, behavior: 'smooth' });
       }
     }
   }, [currentIndex, randomizedList.length]);
@@ -111,11 +210,15 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
     }
   };
 
+  const handleClose = () => {
+      stopCurrentNarrative();
+      onClose();
+  };
+
   return (
     <div className="fixed inset-0 bg-black z-[500] flex flex-col overflow-hidden">
-      {/* Updated Close Button Position and Size */}
       <div className="absolute top-5 right-4 z-[600]">
-        <button onClick={onClose} className="p-2 rounded-full bg-black/60 backdrop-blur-xl text-red-600 border border-red-600 shadow-[0_0_15px_#dc2626] active:scale-75 transition-all hover:bg-black/80">
+        <button onClick={handleClose} className="p-2 rounded-full bg-black/60 backdrop-blur-xl text-red-600 border border-red-600 shadow-[0_0_15px_#dc2626] active:scale-75 transition-all hover:bg-black/80">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
@@ -154,8 +257,12 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
                     onTimeUpdate={(e) => isActive && onProgress(video.id, e.currentTarget.currentTime / e.currentTarget.duration)}
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/60 pointer-events-none" />
-                {/* Trend Badge - Inside Shorts Player */}
                 <NeonTrendBadge is_trending={video.is_trending} />
+                
+                {/* DYNAMIC CAPTIONS - Render only if Narrative is ON */}
+                {isNarrativeOn && (
+                   <DynamicCaptions text={video.description} isActive={isActive} isShorts={true} />
+                )}
               </div>
 
               {video.redirect_url && (
@@ -169,6 +276,21 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
               )}
 
               <div className="absolute bottom-24 left-4 flex flex-col items-center gap-5 z-40">
+                
+                {/* Narrative Toggle Button - ABOVE LIKE BUTTON */}
+                <div className="flex flex-col items-center gap-1">
+                    <button onClick={handleToggleNarrative} className="group">
+                        <div className={`p-3.5 rounded-full border-2 transition-all duration-300 ${isNarrativeOn ? 'bg-cyan-600 border-cyan-400 text-white shadow-[0_0_20px_#22d3ee]' : 'bg-black/40 border-white/20 text-gray-400 hover:border-cyan-600/50'}`}>
+                           {isNarrativeOn ? (
+                               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>
+                           ) : (
+                               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>
+                           )}
+                        </div>
+                    </button>
+                    <span className="text-[9px] font-black text-white drop-shadow-lg italic">{isNarrativeOn ? 'ON' : 'OFF'}</span>
+                </div>
+
                 <div className="flex flex-col items-center gap-1">
                   <button onClick={(e) => { e.stopPropagation(); onLike(video.id); }} className="group">
                     <div className={`p-3.5 rounded-full border-2 transition-all duration-300 ${isLiked ? 'bg-red-600 border-red-400 text-white shadow-[0_0_20px_#ef4444]' : 'bg-black/40 border-white/20 text-white backdrop-blur-xl hover:border-red-600/50'}`}>
@@ -203,26 +325,36 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
                 </button>
               </div>
 
-              <div className="absolute bottom-24 right-4 left-24 z-40 text-right">
-                <div className="flex flex-col items-end gap-3">
-                  <button onClick={(e) => { e.stopPropagation(); onCategoryClick(video.category); }} className="backdrop-blur-xl bg-red-600/70 border-2 border-red-400 px-4 py-1 rounded-full shadow-[0_0_15px_red] active:scale-95 transition-all">
+              <div className="absolute bottom-24 right-4 z-40 max-w-[75%]">
+                <div className="flex flex-col items-start gap-3">
+                  <button onClick={(e) => { e.stopPropagation(); onCategoryClick(video.category); }} className="backdrop-blur-xl bg-red-600/70 border-2 border-red-400 px-4 py-1 rounded-full shadow-[0_0_15px_red] active:scale-95 transition-all self-start">
                     <span className="text-[10px] font-black text-white italic uppercase">{video.category}</span>
                   </button>
-                  <div className="flex items-center gap-3 flex-row-reverse">
-                    <div className="flex flex-col items-end">
-                      <h3 className="text-white text-lg font-black drop-shadow-xl leading-tight line-clamp-1 italic">@الحديقة المرعبة</h3>
-                      <p className="text-white/80 text-[11px] font-bold italic mt-1 drop-shadow-md">{video.title}</p>
-                      {video.description && <p className="text-white/60 text-[9px] font-medium mt-1 drop-shadow-sm max-w-[200px]">{video.description}</p>}
+                  
+                  <div className="flex items-center gap-3">
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); handleClose(); }}
+                      className="relative w-12 h-12 flex items-center justify-center cursor-pointer active:scale-90 transition-transform shrink-0"
+                    >
+                      <div className="absolute w-full h-full rounded-full border-t-2 border-b-2 border-red-600 border-l-transparent border-r-transparent animate-spin shadow-[0_0_15px_rgba(220,38,38,0.8)]" style={{ animationDuration: '1.5s' }}></div>
+                      <div className="absolute w-[90%] h-[90%] rounded-full border-l-2 border-r-2 border-yellow-500 border-t-transparent border-b-transparent animate-spin shadow-[0_0_10px_rgba(234,179,8,0.8)]" style={{ animationDirection: 'reverse', animationDuration: '2s' }}></div>
+                      <div className="relative z-10 w-[85%] h-[85%] rounded-full overflow-hidden border border-white/20 shadow-[0_0_10px_rgba(220,38,38,0.6)]">
+                         <img 
+                           src={LOGO_URL} 
+                           className="w-full h-full object-cover opacity-90"
+                           alt="Logo" 
+                         />
+                      </div>
                     </div>
-                    <img 
-                      src={LOGO_URL} 
-                      onClick={(e) => { e.stopPropagation(); onClose(); }}
-                      className={`w-12 h-12 rounded-full border-2 border-red-600 shadow-[0_0_20px_red] transition-transform active:scale-90`} 
-                      alt="Logo" 
-                    />
+
+                    <div className="flex flex-col items-start text-right">
+                      <h3 className="text-red-600 text-[11px] font-black drop-shadow-md leading-tight italic">@الحديقة المرعبة</h3>
+                      <p className="text-white/90 text-[11px] font-bold italic mt-0.5 drop-shadow-md leading-tight">{video.title}</p>
+                    </div>
                   </div>
                 </div>
               </div>
+
             </div>
           );
         })}

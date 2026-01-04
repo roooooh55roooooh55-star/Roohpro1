@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Video } from './types';
 import { incrementViewsInDB } from './supabaseClient';
 import { getDeterministicStats, formatBigNumber, LOGO_URL, InteractiveMarquee, NeonTrendBadge } from './MainContent';
+import { playNarrative, stopCurrentNarrative } from './elevenLabsManager';
 
 interface LongPlayerOverlayProps {
   video: Video;
@@ -22,6 +23,83 @@ interface LongPlayerOverlayProps {
   onProgress: (p: number) => void;
 }
 
+// Neon Styles Configuration for Narrative
+const NARRATIVE_STYLES = [
+    { border: 'border-red-500', shadow: 'shadow-[0_0_20px_#ef4444]', dot: 'bg-red-500', text: 'text-white' },
+    { border: 'border-cyan-400', shadow: 'shadow-[0_0_20px_#22d3ee]', dot: 'bg-cyan-400', text: 'text-cyan-50' },
+    { border: 'border-purple-500', shadow: 'shadow-[0_0_20px_#a855f7]', dot: 'bg-purple-500', text: 'text-purple-50' },
+    { border: 'border-yellow-400', shadow: 'shadow-[0_0_20px_#facc15]', dot: 'bg-yellow-400', text: 'text-yellow-50' },
+    { border: 'border-emerald-500', shadow: 'shadow-[0_0_20px_#10b981]', dot: 'bg-emerald-500', text: 'text-emerald-50' },
+    { border: 'border-pink-500', shadow: 'shadow-[0_0_20px_#ec4899]', dot: 'bg-pink-500', text: 'text-pink-50' },
+];
+
+const DynamicCaptions: React.FC<{ text: string, isActive: boolean }> = ({ text, isActive }) => {
+    const [currentChunk, setCurrentChunk] = useState('');
+    const [isVisible, setIsVisible] = useState(false);
+    const [currentStyle, setCurrentStyle] = useState(NARRATIVE_STYLES[0]);
+    const chunkIndex = useRef(0);
+    
+    const chunks = useMemo(() => {
+      if (!text) return [];
+      const words = text.split(/\s+/);
+      const result = [];
+      for (let i = 0; i < words.length; i += 4) {
+        result.push(words.slice(i, i + 4).join(' '));
+      }
+      return result;
+    }, [text]);
+  
+    useEffect(() => {
+      if (!isActive || chunks.length === 0) {
+        setIsVisible(false);
+        return;
+      }
+  
+      chunkIndex.current = 0;
+      
+      const showNextChunk = () => {
+        if (chunkIndex.current >= chunks.length) {
+          setIsVisible(false);
+          return;
+        }
+  
+        // Change style randomly for each chunk for a dazzling effect
+        const randomStyle = NARRATIVE_STYLES[Math.floor(Math.random() * NARRATIVE_STYLES.length)];
+        setCurrentStyle(randomStyle);
+
+        setCurrentChunk(chunks[chunkIndex.current]);
+        setIsVisible(true);
+  
+        setTimeout(() => {
+          setIsVisible(false);
+          setTimeout(() => {
+            chunkIndex.current++;
+            showNextChunk();
+          }, 300);
+        }, 2500); 
+      };
+  
+      showNextChunk();
+    }, [chunks, isActive]);
+  
+    if (chunks.length === 0) return null;
+  
+    return (
+      <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[100] w-full max-w-[90%] pointer-events-none flex flex-col items-center justify-center text-center">
+        <div 
+          className={`transition-all duration-500 ease-in-out transform ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95'}`}
+        >
+           <div className={`bg-black/70 backdrop-blur-md border-2 px-6 py-3 rounded-2xl flex items-center justify-center gap-3 transition-colors duration-300 ${currentStyle.border} ${currentStyle.shadow}`}>
+             <div className={`w-2 h-2 rounded-full animate-pulse shadow-[0_0_10px_currentColor] ${currentStyle.dot}`}></div>
+             <span className={`text-xl md:text-2xl font-black italic drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-relaxed tracking-wide ${currentStyle.text}`}>
+                {currentChunk}
+             </span>
+           </div>
+        </div>
+      </div>
+    );
+};
+
 const LongPlayerOverlay: React.FC<LongPlayerOverlayProps> = ({ 
   video, allLongVideos, onClose, onLike, onDislike, onSave, onSwitchVideo, onCategoryClick, onDownload, isLiked, isDisliked, isSaved, isDownloaded, isGlobalDownloading, onProgress 
 }) => {
@@ -35,6 +113,24 @@ const LongPlayerOverlay: React.FC<LongPlayerOverlayProps> = ({
   
   const stats = useMemo(() => video ? getDeterministicStats(video.video_url) : { views: 0, likes: 0 }, [video?.video_url]);
   const suggestions = useMemo(() => allLongVideos.filter(v => v && v.id !== video?.id && v.video_type === 'Long Video'), [allLongVideos, video]);
+
+  // Audio Management on Mount/Unmount/Switch
+  useEffect(() => {
+      // Stop old narrative immediately when this component mounts or video changes
+      stopCurrentNarrative();
+
+      if (video && video.read_narrative) {
+          const textToRead = video.description || video.title;
+          if (textToRead) {
+             // Delay slightly to allow video load
+             setTimeout(() => playNarrative(textToRead), 500);
+          }
+      }
+
+      return () => {
+          stopCurrentNarrative();
+      };
+  }, [video?.id]);
 
   useEffect(() => {
     if (!video) return;
@@ -98,8 +194,14 @@ const LongPlayerOverlay: React.FC<LongPlayerOverlayProps> = ({
     if (video.redirect_url) {
       window.open(video.redirect_url, '_blank');
     } else {
-      onClose(); // العودة للواجهة الرئيسية إذا لم يتوفر رابط
+      stopCurrentNarrative();
+      onClose();
     }
+  };
+
+  const handleClose = () => {
+      stopCurrentNarrative();
+      onClose();
   };
 
   if (!video) return null;
@@ -112,7 +214,6 @@ const LongPlayerOverlay: React.FC<LongPlayerOverlayProps> = ({
         <video 
           ref={videoRef} 
           src={video.video_url} 
-          // Removed opacity changes, always opacity-100
           className={`transition-all duration-700 h-full w-full object-contain opacity-100 contrast-110 saturate-125 ${isFullScreen ? 'rotate-90 scale-[1.65]' : 'rotate-0'}`} 
           playsInline 
           crossOrigin="anonymous"
@@ -120,10 +221,11 @@ const LongPlayerOverlay: React.FC<LongPlayerOverlayProps> = ({
           onClick={() => isPlaying ? videoRef.current?.pause() : videoRef.current?.play()}
         />
 
-        {/* Trend Badge - Inside Long Player */}
         <div className={`absolute ${isFullScreen ? 'top-10 left-10' : 'top-16 left-2'} z-40`}>
           <NeonTrendBadge is_trending={video.is_trending} />
         </div>
+
+        <DynamicCaptions text={video.description} isActive={isPlaying} />
 
         <div className="absolute bottom-0 left-0 w-full px-2 pb-1 z-50">
            <input 
@@ -138,7 +240,7 @@ const LongPlayerOverlay: React.FC<LongPlayerOverlayProps> = ({
         </div>
 
         <div className={`absolute top-5 left-5 right-5 flex justify-between items-start z-50 transition-opacity duration-500 ${isFullScreen ? 'opacity-30 hover:opacity-100' : 'opacity-100'}`}>
-          <button onClick={onClose} className="p-3.5 bg-black/60 rounded-2xl border-2 border-red-600 text-red-600 shadow-[0_0_20px_red] active:scale-75 transition-all backdrop-blur-md">
+          <button onClick={handleClose} className="p-3.5 bg-black/60 rounded-2xl border-2 border-red-600 text-red-600 shadow-[0_0_20px_red] active:scale-75 transition-all backdrop-blur-md">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="4"><path d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
           
@@ -155,10 +257,16 @@ const LongPlayerOverlay: React.FC<LongPlayerOverlayProps> = ({
 
       <div className={`flex-1 overflow-y-auto bg-[#020202] p-4 space-y-6 scrollbar-hide ${isFullScreen ? 'hidden' : 'block landscape:hidden'}`}>
           <div className="flex items-center gap-5 bg-white/5 p-4 rounded-[2.5rem] border-2 border-white/10 shadow-2xl">
-             <div className="relative shrink-0 cursor-pointer" onClick={handleLogoClick}>
-                <img src={LOGO_URL} className="w-14 h-14 rounded-full border-2 border-red-600 shadow-[0_0_20px_red]" alt="Logo" />
-                {video.redirect_url && <div className="absolute -top-1 -left-1 bg-red-600 text-[8px] p-1 rounded-full border border-white animate-ping"></div>}
+             
+             <div className="relative w-14 h-14 shrink-0 flex items-center justify-center cursor-pointer" onClick={handleLogoClick}>
+                <div className="absolute w-full h-full rounded-full border-t-2 border-b-2 border-red-600 border-l-transparent border-r-transparent animate-spin shadow-[0_0_15px_rgba(220,38,38,0.8)]" style={{ animationDuration: '1.5s' }}></div>
+                <div className="absolute w-[90%] h-[90%] rounded-full border-l-2 border-r-2 border-yellow-500 border-t-transparent border-b-transparent animate-spin shadow-[0_0_10px_rgba(234,179,8,0.8)]" style={{ animationDirection: 'reverse', animationDuration: '2s' }}></div>
+                <div className="relative z-10 w-[85%] h-[85%] rounded-full overflow-hidden border border-white/20 shadow-[0_0_10px_rgba(220,38,38,0.6)]">
+                   <img src={LOGO_URL} className="w-full h-full object-cover opacity-90" alt="Logo" />
+                </div>
+                {video.redirect_url && <div className="absolute -top-1 -left-1 bg-red-600 text-[8px] p-1 rounded-full border border-white animate-ping z-20"></div>}
              </div>
+
              <div className="flex flex-col text-right flex-1 overflow-hidden">
                 <h1 className="text-xl font-black text-white leading-tight line-clamp-2 italic drop-shadow-md">{video.title}</h1>
                 {video.description && <p className="text-white/60 text-[10px] mt-1 line-clamp-2 italic">{video.description}</p>}

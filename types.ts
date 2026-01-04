@@ -1,3 +1,4 @@
+
 export type VideoType = "Shorts" | "Long Video";
 
 export interface Video {
@@ -22,7 +23,9 @@ export interface Video {
   views?: number;
   poster_url?: string;
   // Added: tags array for AI-driven categorization and search
-  tags?: string[];        
+  tags?: string[];
+  // Added: Toggle for reading narrative/title via TTS
+  read_narrative?: boolean;        
 }
 
 export interface UserInteractions {

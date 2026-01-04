@@ -162,7 +162,7 @@ const VideoCardThumbnail: React.FC<{
         playsInline 
         crossOrigin="anonymous" 
         preload="metadata"
-        className="w-full h-full object-cover opacity-100 contrast-110 saturate-125 transition-all duration-700 pointer-events-none" 
+        className="w-full h-full object-cover opacity-100 contrast-110 saturate-125 transition-all duration-700 pointer-events-none landscape:object-contain" 
       />
       
       {/* Trend Badge */}
@@ -447,7 +447,7 @@ export const InteractiveMarquee: React.FC<{
             const formattedSrc = formatVideoSource(item);
             return (
               <div key={`${item.id}-${idx}`} onClick={() => !isDragging && onPlay(item)} className={`${itemDimensions} shrink-0 rounded-xl overflow-hidden border relative active:scale-95 transition-all ${neonStyle} ${item.is_trending ? 'border-red-600 shadow-[0_0_15px_red]' : ''}`} dir="rtl">
-                <video src={formattedSrc} muted loop playsInline autoPlay crossOrigin="anonymous" preload="metadata" className="w-full h-full object-cover opacity-100 contrast-110 saturate-125 pointer-events-none" />
+                <video src={formattedSrc} muted loop playsInline autoPlay crossOrigin="anonymous" preload="metadata" className="w-full h-full object-cover opacity-100 contrast-110 saturate-125 pointer-events-none landscape:object-contain" />
                 
                 {/* REMOVED Trend Badge from Marquee Items as requested */}
                 
@@ -472,6 +472,9 @@ const MainContent: React.FC<any> = ({
   
   // State for the notification
   const [resumeNotification, setResumeNotification] = useState<{video: Video, pos: {top: string, left: string, anim: string}} | null>(null);
+
+  // State for 3D coming soon modal
+  const [show3DModal, setShow3DModal] = useState(false);
 
   const safeVideos = useMemo(() => videos || [], [videos]);
   
@@ -581,6 +584,15 @@ const MainContent: React.FC<any> = ({
       className="flex flex-col pb-8 w-full bg-black min-h-screen relative"
       style={{ transform: `translateY(${pullOffset / 2}px)` }} dir="rtl"
     >
+      <style>{`
+        @keyframes spin3D {
+          0% { transform: perspective(400px) rotateY(0deg); }
+          100% { transform: perspective(400px) rotateY(360deg); }
+        }
+        .animate-spin-3d {
+          animation: spin3D 3s linear infinite;
+        }
+      `}</style>
       {/* Decreased height from h-14 to h-12 and py-2 to py-1 to reduce gap */}
       <header className="flex items-center justify-between py-1 bg-black relative px-4 border-b border-white/5 shadow-lg h-12">
         <div className="flex items-center gap-2" onClick={onHardRefresh}>
@@ -606,10 +618,26 @@ const MainContent: React.FC<any> = ({
               </div>
             </div>
           )}
-          {/* Neon Search Button */}
-          <button onClick={() => setIsSearchOpen(true)} className="p-2 bg-white/5 border border-white/10 text-white/70 hover:text-white transition-all active:scale-90 rounded-xl shadow-[0_0_10px_rgba(255,255,255,0.2)] hover:shadow-[0_0_20px_white]">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          
+          {/* 3D Button - Restored with Modal */}
+          <div className="flex items-center gap-2">
+             <button 
+               onClick={() => setShow3DModal(true)} 
+               className="p-2 bg-white/5 border border-cyan-500/50 rounded-xl shadow-[0_0_15px_rgba(34,211,238,0.3)] active:scale-90 transition-all group relative overflow-hidden w-9 h-9 flex items-center justify-center"
+             >
+                <div className="absolute inset-0 bg-cyan-400/10 animate-pulse"></div>
+                <span className="block font-black text-[10px] text-cyan-400 animate-spin-3d drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]">3D</span>
+             </button>
+          </div>
+
+          {/* Search Button - Restored */}
+          <button 
+            onClick={() => setIsSearchOpen(true)} 
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 border border-white/20 text-white shadow-lg active:scale-90 transition-all hover:border-red-600 hover:text-red-500"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
           </button>
+
           <button onClick={onOfflineClick} className="p-1 transition-all active:scale-90 relative group">
             <JoyfulNeonLion isDownloading={downloadProgress !== null} hasDownloads={interactions?.downloadedIds?.length > 0} />
           </button>
@@ -708,6 +736,22 @@ const MainContent: React.FC<any> = ({
         />
       )}
 
+      {/* 3D Coming Soon Modal (Restored & Moved Higher) */}
+      {show3DModal && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center pb-40 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShow3DModal(false)}>
+          <div className="bg-neutral-900/90 border border-cyan-500/50 p-8 rounded-[2rem] shadow-[0_0_50px_rgba(34,211,238,0.3)] text-center transform scale-100 relative overflow-hidden max-w-xs mx-4" onClick={e => e.stopPropagation()}>
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent animate-pulse"></div>
+            <h2 className="text-3xl font-black text-white mb-2 italic drop-shadow-lg">تقنية 3D</h2>
+            <p className="text-cyan-400 font-bold text-lg animate-pulse">قريباً جداً...</p>
+            <div className="mt-6 flex justify-center">
+               <div className="w-16 h-16 rounded-full border-4 border-cyan-500 border-t-transparent animate-spin shadow-[0_0_20px_#22d3ee]"></div>
+            </div>
+            <button onClick={() => setShow3DModal(false)} className="mt-8 bg-white/10 hover:bg-white/20 px-6 py-2 rounded-xl text-sm font-bold text-white transition-colors border border-white/10">إغلاق</button>
+          </div>
+        </div>
+      )}
+
+      {/* Search Overlay */}
       {isSearchOpen && (
         <div className="fixed inset-0 z-[1000] bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-300">
           <div className="p-4 flex items-center gap-4 border-b-2 border-white/10 bg-black">

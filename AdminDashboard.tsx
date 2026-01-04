@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Video, VideoType } from './types';
 import { db } from './firebaseConfig.ts';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
@@ -22,6 +22,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [filterCategory, setFilterCategory] = useState('الكل');
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
   
+  // Security State
+  const [failedAttempts, setFailedAttempts] = useState(() => {
+    return parseInt(localStorage.getItem('admin_failed_attempts') || '0');
+  });
+  const [lockoutUntil, setLockoutUntil] = useState(() => {
+    return parseInt(localStorage.getItem('admin_lockout_until') || '0');
+  });
+
   // State for delete confirmation modal
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
@@ -38,10 +46,56 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAuth = () => {
-    if (passcode === currentPasscode) setIsAuthenticated(true);
-    else { alert("الرمز خاطئ! الأرواح ترفض دخولك."); setPasscode(''); }
+  // Helper to get persistent device ID for Firebase logging
+  const getDeviceId = () => {
+    let id = localStorage.getItem('device_security_id');
+    if (!id) {
+      id = 'dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+      localStorage.setItem('device_security_id', id);
+    }
+    return id;
   };
+
+  const handleAuth = async () => {
+    // Check lockout first
+    if (Date.now() < lockoutUntil) {
+       return;
+    }
+
+    if (passcode === currentPasscode) {
+      setIsAuthenticated(true);
+      setFailedAttempts(0);
+      localStorage.setItem('admin_failed_attempts', '0');
+    } else { 
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+      localStorage.setItem('admin_failed_attempts', newAttempts.toString());
+      setPasscode('');
+      
+      if (newAttempts >= 5) {
+        const lockoutTime = Date.now() + (60 * 60 * 1000); // 1 Hour
+        setLockoutUntil(lockoutTime);
+        localStorage.setItem('admin_lockout_until', lockoutTime.toString());
+        
+        // Log security breach to Firebase
+        try {
+          await addDoc(collection(db, "security_lockouts"), {
+            device_id: getDeviceId(),
+            timestamp: serverTimestamp(),
+            reason: "5_failed_attempts",
+            lockout_until: new Date(lockoutTime).toISOString(),
+            user_agent: navigator.userAgent
+          });
+        } catch (e) {
+          console.error("Failed to log security event", e);
+        }
+      } else {
+        alert(`الرمز خاطئ! المحاولة ${newAttempts} من 5.`);
+      }
+    }
+  };
+
+  const isLockedOut = Date.now() < lockoutUntil;
 
   const uploadFileToStorage = async (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -144,6 +198,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [initialVideos, searchQuery, filterCategory]);
 
   if (!isAuthenticated) {
+    if (isLockedOut) {
+      return (
+        <div className="fixed inset-0 z-[1000] bg-black flex flex-col items-center justify-center p-6 text-center" dir="rtl">
+           <div className="w-24 h-24 rounded-full border-4 border-red-900 flex items-center justify-center mb-6 animate-pulse">
+             <svg className="w-12 h-12 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+           </div>
+           <h2 className="text-3xl font-black text-red-800 italic">نظام مغلق أمنياً</h2>
+           <p className="text-gray-500 mt-4 font-bold text-sm">تم استنفاذ محاولات الدخول. <br/> يرجى العودة لاحقاً.</p>
+           <button onClick={onClose} className="mt-10 px-8 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-bold">خروج</button>
+        </div>
+      );
+    }
+
     return (
       <div className="fixed inset-0 z-[1000] bg-black flex flex-col items-center justify-center p-6" dir="rtl">
         <div className="flex flex-col items-center mb-10 animate-in zoom-in duration-500">

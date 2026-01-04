@@ -143,7 +143,7 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
                 <video 
                     ref={el => { videoRefs.current[`main-${idx}`] = el; }}
                     src={formattedSrc} 
-                    className={`h-full w-full object-cover transition-opacity duration-500 contrast-110 saturate-125 opacity-100`}
+                    className={`h-full w-full object-cover transition-opacity duration-500 contrast-110 saturate-125 opacity-100 landscape:object-contain`}
                     playsInline 
                     loop={false} 
                     crossOrigin="anonymous"

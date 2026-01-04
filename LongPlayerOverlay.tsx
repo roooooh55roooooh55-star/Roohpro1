@@ -107,7 +107,7 @@ const LongPlayerOverlay: React.FC<LongPlayerOverlayProps> = ({
   return (
     <div ref={containerRef} className="fixed inset-0 bg-black z-[500] flex flex-col overflow-hidden" dir="rtl">
       <div 
-        className={`relative bg-black transition-all duration-700 ease-in-out flex flex-col items-center justify-center overflow-hidden ${isFullScreen ? 'h-full flex-grow' : 'h-[35dvh] border-b-2 border-white/10 shadow-2xl'}`}
+        className={`relative bg-black transition-all duration-700 ease-in-out flex flex-col items-center justify-center overflow-hidden ${isFullScreen ? 'h-full flex-grow' : 'h-[35dvh] border-b-2 border-white/10 shadow-2xl landscape:h-full'}`}
       >
         <video 
           ref={videoRef} 
@@ -153,7 +153,7 @@ const LongPlayerOverlay: React.FC<LongPlayerOverlayProps> = ({
         </div>
       </div>
 
-      <div className={`flex-1 overflow-y-auto bg-[#020202] p-4 space-y-6 scrollbar-hide ${isFullScreen ? 'hidden' : 'block'}`}>
+      <div className={`flex-1 overflow-y-auto bg-[#020202] p-4 space-y-6 scrollbar-hide ${isFullScreen ? 'hidden' : 'block landscape:hidden'}`}>
           <div className="flex items-center gap-5 bg-white/5 p-4 rounded-[2.5rem] border-2 border-white/10 shadow-2xl">
              <div className="relative shrink-0 cursor-pointer" onClick={handleLogoClick}>
                 <img src={LOGO_URL} className="w-14 h-14 rounded-full border-2 border-red-600 shadow-[0_0_20px_red]" alt="Logo" />

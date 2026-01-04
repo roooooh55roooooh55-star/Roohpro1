@@ -3,9 +3,10 @@ import React from 'react';
 
 interface PrivacyPageProps {
   onOpenAdmin: () => void;
+  onBack: () => void;
 }
 
-const PrivacyPage: React.FC<PrivacyPageProps> = ({ onOpenAdmin }) => {
+const PrivacyPage: React.FC<PrivacyPageProps> = ({ onOpenAdmin, onBack }) => {
   const LOGO_URL = "https://i.top4top.io/p_3643ksmii1.jpg";
   const EXTERNAL_URL = "https://www.termsfeed.com/live/privacy-policy-dark-hadiqa";
 
@@ -43,7 +44,18 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onOpenAdmin }) => {
         </div>
       </div>
 
-      <div className="mt-20 flex flex-col items-center">
+      {/* Elegant Close Button - Triggers Refresh */}
+      <button 
+        onClick={onBack}
+        className="mx-auto mt-6 w-14 h-14 rounded-full bg-red-600 text-white flex items-center justify-center shadow-[0_0_20px_red] border-2 border-red-400 active:scale-90 transition-all hover:bg-red-500 hover:shadow-[0_0_30px_red] z-50 animate-bounce"
+        title="العودة والتحديث"
+      >
+         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+         </svg>
+      </button>
+
+      <div className="mt-12 flex flex-col items-center">
          <div 
            onClick={onOpenAdmin}
            className="w-full h-24 opacity-0 cursor-default"

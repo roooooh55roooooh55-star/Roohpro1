@@ -64,19 +64,43 @@ const App: React.FC = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // دالة الخلط الذكية
-  const shuffleAndBoost = (videos: Video[]) => {
-    const shuffled = [...videos].sort(() => Math.random() - 0.5);
-    const trending = shuffled.filter(v => v.is_trending);
-    const regular = shuffled.filter(v => !v.is_trending);
-    return [...trending.slice(0, 3), ...regular, ...trending.slice(3)];
-  };
+  // 🧠 AI Logic: خوارزمية التوصية الذكية والفلترة
+  const applySmartRecommendations = useCallback((videos: Video[], userInteractions: UserInteractions) => {
+    // 1. استبعاد الفيديوهات التي تم الإعجاب بها مسبقاً (لن تظهر في الواجهة)
+    const unseenVideos = videos.filter(v => !userInteractions.likedIds.includes(v.id));
+
+    // 2. تحليل تفضيلات المستخدم بناءً على الإعجابات السابقة
+    const likedVideos = videos.filter(v => userInteractions.likedIds.includes(v.id));
+    const preferredCategories = new Set(likedVideos.map(v => v.category));
+
+    // 3. نظام النقاط (Scoring System)
+    const scoredVideos = unseenVideos.map(video => {
+      let score = Math.random(); // عشوائية أساسية للتنويع
+
+      // زيادة النقاط بشكل كبير إذا كان الفيديو من قسم يحبه المستخدم
+      if (preferredCategories.has(video.category)) {
+        score += 10; 
+      }
+
+      // زيادة طفيفة للترند
+      if (video.is_trending) {
+        score += 2;
+      }
+
+      return { video, score };
+    });
+
+    // 4. ترتيب الفيديوهات بناءً على النقاط (الأعلى يظهر أولاً)
+    scoredVideos.sort((a, b) => b.score - a.score);
+
+    return scoredVideos.map(item => item.video);
+  }, []);
 
   const handleManualRefresh = useCallback(() => {
     setLoading(true);
     setTimeout(() => {
-      // إعادة خلط المحتوى الحالي
-      const newOrder = shuffleAndBoost(rawVideos);
+      // عند التحديث اليدوي، نعيد تطبيق الخوارزمية الذكية
+      const newOrder = applySmartRecommendations(rawVideos, interactions);
       setDisplayVideos(newOrder);
       setRefreshKey(prev => prev + 1);
       setCurrentView(AppView.HOME);
@@ -84,7 +108,15 @@ const App: React.FC = () => {
       setLoading(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }, 800); 
-  }, [rawVideos]);
+  }, [rawVideos, interactions, applySmartRecommendations]);
+
+  // تحديث القائمة المعروضة تلقائياً عند تغير الإعجابات (لإخفاء الفيديو المعجب به فوراً)
+  useEffect(() => {
+    if (rawVideos.length > 0) {
+      const updatedList = applySmartRecommendations(rawVideos, interactions);
+      setDisplayVideos(updatedList);
+    }
+  }, [interactions.likedIds, rawVideos, applySmartRecommendations]);
 
   useEffect(() => {
     // تسجيل وقت البدء لضمان ظهور اللوجو لمدة ثانية واحدة على الأقل
@@ -109,20 +141,19 @@ const App: React.FC = () => {
         };
       }) as Video[];
       
-      // FIX: Filter out videos with no URL immediately to prevent black screens anywhere in the app
       const validVideos = videosList.filter(v => (v.video_url && v.video_url.trim() !== "") || (v.redirect_url && v.redirect_url.trim() !== ""));
       
       setRawVideos(validVideos);
-      setDisplayVideos(validVideos);
       
-      // بدء التخزين المؤقت الذكي في الخلفية بينما اللوجو ظاهر
+      // تطبيق التوصيات فور تحميل البيانات
+      const smartList = applySmartRecommendations(validVideos, interactions);
+      setDisplayVideos(smartList);
+      
       if (validVideos.length > 0) {
         initSmartBuffering(validVideos);
       }
       
-      // حساب الوقت المنقضي منذ بدء التحميل
       const elapsedTime = Date.now() - startLoadTime;
-      // ضمان بقاء اللوجو لمدة 1000 مللي ثانية (ثانية واحدة) كحد أدنى
       const remainingTime = Math.max(0, 1000 - elapsedTime);
 
       setTimeout(() => {
@@ -135,28 +166,32 @@ const App: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, []); 
+  }, []); // Run once on mount
 
   useEffect(() => { 
     localStorage.setItem('al-hadiqa-interactions-v12', JSON.stringify(interactions)); 
   }, [interactions]);
 
-  // FIX: Force close players if the video is deleted (to prevent black screen residue)
+  // FIX: Force close players ONLY if the video is deleted from DATABASE (rawVideos)
+  // We do NOT check displayVideos here because displayVideos hides liked videos, 
+  // and we don't want to close the player just because the user liked the video.
   useEffect(() => {
-    if (selectedShort && !displayVideos.find(v => v.id === selectedShort.video.id)) {
+    if (selectedShort && !rawVideos.find(v => v.id === selectedShort.video.id)) {
       setSelectedShort(null);
     }
-    if (selectedLong && !displayVideos.find(v => v.id === selectedLong.video.id)) {
+    if (selectedLong && !rawVideos.find(v => v.id === selectedLong.video.id)) {
       setSelectedLong(null);
     }
-  }, [displayVideos, selectedShort, selectedLong]);
+  }, [rawVideos, selectedShort, selectedLong]);
 
   const handleLikeToggle = (id: string) => {
     setInteractions(p => {
       const isAlreadyLiked = p.likedIds.includes(id);
       if (isAlreadyLiked) {
+        // إذا قام بإزالة الإعجاب، سيعود الفيديو للظهور في القائمة الرئيسية بفضل useEffect
         return { ...p, likedIds: p.likedIds.filter(x => x !== id) };
       }
+      // عند الإعجاب، ستتم إضافته للقائمة، وبالتالي سيختفي من العرض الرئيسي
       return { ...p, likedIds: [...p.likedIds, id], dislikedIds: p.dislikedIds.filter(x => x !== id) };
     });
   };
@@ -223,9 +258,11 @@ const App: React.FC = () => {
         return (
           <Suspense fallback={null}>
             <OfflinePage 
-              allVideos={activeVideos} interactions={interactions} 
+              // Offline page needs ALL videos to find downloads, not just displayed ones
+              allVideos={rawVideos} 
+              interactions={interactions} 
               onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} 
-              onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})} 
+              onPlayLong={(v) => setSelectedLong({video:v, list:rawVideos.filter(rv => rv.video_type === 'Long Video')})} 
               onBack={() => setCurrentView(AppView.HOME)}
               onUpdateInteractions={setInteractions}
             />
@@ -235,7 +272,13 @@ const App: React.FC = () => {
         return (
           <Suspense fallback={null}>
             <CategoryPage 
-              category={activeCategory} allVideos={activeVideos}
+              category={activeCategory} 
+              // Category page should show videos even if liked? 
+              // Usually yes, so we pass rawVideos filtered by category logic inside component.
+              // But strictly following "remove from page", we pass displayVideos to be consistent with home feed behavior,
+              // OR pass rawVideos if we want category page to show everything including liked.
+              // Let's pass displayVideos to maintain the "Hide Liked" logic globally.
+              allVideos={displayVideos}
               isSaved={interactions.savedCategoryNames.includes(activeCategory)}
               onToggleSave={() => {
                 setInteractions(p => {
@@ -253,9 +296,9 @@ const App: React.FC = () => {
         return (
           <Suspense fallback={null}>
             <TrendPage 
-              allVideos={rawVideos}
-              onPlayShort={(v, l) => setSelectedShort({video:v, list:shortsOnly})} 
-              onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})} 
+              allVideos={rawVideos} // Trend page shows everything regardless of like status usually
+              onPlayShort={(v, l) => setSelectedShort({video:v, list:rawVideos.filter(rv => rv.video_type === 'Shorts')})} 
+              onPlayLong={(v) => setSelectedLong({video:v, list:rawVideos.filter(rv => rv.video_type === 'Long Video')})} 
               excludedIds={interactions.dislikedIds} 
             />
           </Suspense>
@@ -267,9 +310,9 @@ const App: React.FC = () => {
               title="الإعجابات"
               savedIds={interactions.likedIds}
               savedCategories={[]} 
-              allVideos={activeVideos}
+              allVideos={rawVideos} // Likes page MUST show liked videos (from raw)
               onPlayShort={(v, l) => setSelectedShort({video:v, list:l})}
-              onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})}
+              onPlayLong={(v) => setSelectedLong({video:v, list:rawVideos.filter(rv => rv.video_type === 'Long Video')})}
               onCategoryClick={(cat) => { setActiveCategory(cat); setCurrentView(AppView.CATEGORY); }}
             />
           </Suspense>
@@ -281,9 +324,9 @@ const App: React.FC = () => {
               title="المحفوظات"
               savedIds={interactions.savedIds}
               savedCategories={interactions.savedCategoryNames}
-              allVideos={activeVideos}
+              allVideos={rawVideos}
               onPlayShort={(v, l) => setSelectedShort({video:v, list:l})}
-              onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})}
+              onPlayLong={(v) => setSelectedLong({video:v, list:rawVideos.filter(rv => rv.video_type === 'Long Video')})}
               onCategoryClick={(cat) => { setActiveCategory(cat); setCurrentView(AppView.CATEGORY); }}
             />
           </Suspense>
@@ -293,7 +336,7 @@ const App: React.FC = () => {
           <Suspense fallback={null}>
             <HiddenVideosPage 
               interactions={interactions}
-              allVideos={activeVideos}
+              allVideos={rawVideos}
               onRestore={(id) => {
                 setInteractions(p => ({
                   ...p,
@@ -302,14 +345,20 @@ const App: React.FC = () => {
                 showToast("تم استعادة الروح المعذبة 🩸");
               }}
               onPlayShort={(v, l) => setSelectedShort({video:v, list:l})}
-              onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})}
+              onPlayLong={(v) => setSelectedLong({video:v, list:rawVideos.filter(rv => rv.video_type === 'Long Video')})}
             />
           </Suspense>
         );
       case AppView.PRIVACY:
         return (
           <Suspense fallback={null}>
-            <PrivacyPage onOpenAdmin={() => setCurrentView(AppView.ADMIN)} />
+            <PrivacyPage 
+              onOpenAdmin={() => setCurrentView(AppView.ADMIN)} 
+              onBack={() => {
+                setCurrentView(AppView.HOME);
+                handleManualRefresh();
+              }}
+            />
           </Suspense>
         );
       case AppView.UNWATCHED:
@@ -317,9 +366,9 @@ const App: React.FC = () => {
            <Suspense fallback={null}>
              <UnwatchedPage 
                watchHistory={interactions.watchHistory}
-               allVideos={activeVideos}
+               allVideos={rawVideos}
                onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} 
-               onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})} 
+               onPlayLong={(v) => setSelectedLong({video:v, list:rawVideos.filter(rv => rv.video_type === 'Long Video')})} 
              />
            </Suspense>
         );
@@ -394,7 +443,7 @@ const App: React.FC = () => {
             interactions={interactions}
             onClose={() => {
               setSelectedShort(null);
-              // Trigger refresh when shorts overlay is closed
+              // Trigger refresh when shorts overlay is closed to update feed if likes changed
               handleManualRefresh();
             }}
             onLike={handleLikeToggle}

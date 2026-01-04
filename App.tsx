@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import { Video, AppView, UserInteractions } from './types';
 import { db, ensureAuth } from './firebaseConfig';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import AppBar from './AppBar';
 import MainContent from './MainContent';
 import { downloadVideoWithProgress, removeVideoFromCache } from './offlineManager';
@@ -151,10 +150,10 @@ const App: React.FC = () => {
             
             if (!isMounted) return;
 
-            const q = query(collection(db, "videos"), orderBy("created_at", "desc"));
+            const q = db.collection("videos").orderBy("created_at", "desc");
             
             // includeMetadataChanges: true makes the listener fire immediately with cached data
-            unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+            unsubscribe = q.onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
                 const videosList = snapshot.docs.map(doc => {
                     const data = doc.data();
                     let vType = data.video_type;

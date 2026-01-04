@@ -1,7 +1,7 @@
 
-import { initializeApp } from "firebase/app";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
-import { getAuth, signInAnonymously, onAuthStateChanged, User } from "firebase/auth";
+import firebase from "firebase/compat/app";
+import "firebase/compat/firestore";
+import "firebase/compat/auth";
 
 // بيانات مشروع روح 1 (Rooh1) الرسمية المقدمة من المستخدم
 const firebaseConfig = {
@@ -13,46 +13,52 @@ const firebaseConfig = {
   appId: "1:798624809478:web:472d3a3149a7e1c24ff987"
 };
 
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
-// 1. بدلاً من getFirestore(app) استخدم initializeFirestore
-// هذا التكوين يحل مشاكل تعدد التبويبات (Multiple Tabs) ومشاكل الاتصال (Long Polling)
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true, 
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-});
+const dbInstance = firebase.firestore();
 
-export const auth = getAuth(app);
+// Attempt to enable persistence
+try {
+    dbInstance.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+        console.warn("Persistence error", err);
+    });
+} catch (e) {
+    console.warn("Persistence not supported", e);
+}
 
-// Helper function to ensure the user is authenticated before performing actions
-// This wraps the auth logic in a Promise to guarantee a user object is available
-export const ensureAuth = (): Promise<User> => {
+export const db = dbInstance;
+export const auth = firebase.auth();
+
+// Helper function to ensure the user is authenticated
+export const ensureAuth = (): Promise<firebase.User> => {
   return new Promise((resolve, reject) => {
-    // 1. If a user is already signed in, resolve immediately.
+    // 1. If already signed in, resolve immediately.
     if (auth.currentUser) {
       resolve(auth.currentUser);
       return;
     }
 
-    // 2. Set up a one-time listener for the authentication state change.
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    // 2. Listener for auth state
+    const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
-        unsubscribe(); // Detach listener once we have a user
+        unsubscribe();
         resolve(user);
       }
     }, (error) => {
-      console.error("Auth Listener Error:", error);
-      reject(error);
+       console.warn("Auth state change error:", error);
     });
 
-    // 3. Trigger anonymous sign-in. 
-    // If we are already signing in, this call returns the existing promise/task.
-    signInAnonymously(auth).catch((error) => {
-      console.warn("Anonymous Sign-in Error:", error);
-      // We don't necessarily reject here because the listener might still pick up a user 
-      // if there was a race condition or if the error is recoverable/ignorable (e.g. already in progress).
+    // 3. Try Anonymous Sign-in
+    auth.signInAnonymously().catch((error) => {
+      if (error.code === 'auth/identity-toolkit-api-has-not-been-used-in-project' || 
+          error.message.includes('identity-toolkit-api')) {
+         console.warn("Firebase Auth Notice: Anonymous auth is not enabled in console. App running in restricted mode.");
+      } else {
+         console.error("Anonymous Sign-in Error:", error);
+      }
     });
   });
 };

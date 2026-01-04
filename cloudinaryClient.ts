@@ -1,11 +1,12 @@
 
 import { Video } from './types';
 
-// هذا الملف تم تعطيله تماماً بناءً على طلب المستخدم.
-// النظام يعمل الآن حصرياً على R2 و Firebase.
+// 🛑 DEAD CODE: Cloudinary Removed.
+// This file is kept only to prevent import errors in legacy components if any exist.
+// The system strictly uses R2 Vault & Firebase.
 
 export const fetchCloudinaryVideos = async (): Promise<Video[]> => {
-  console.log("Cloudinary connection is disabled. Using R2 Vault only.");
+  console.warn("Attempted to fetch from legacy source. Blocked. Using R2 Vault.");
   return [];
 };
 

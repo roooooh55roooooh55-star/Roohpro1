@@ -1,6 +1,5 @@
 
 import { db, ensureAuth } from './firebaseConfig';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 // Singleton to manage the audio instance globally
 let currentAudio: HTMLAudioElement | null = null;
@@ -35,12 +34,14 @@ export const stopCurrentNarrative = () => {
 const getActiveKeyData = async () => {
   try {
     await ensureAuth();
-    const docRef = doc(db, "settings", "api_config");
-    const snapshot = await getDoc(docRef);
+    const docRef = db.collection("settings").doc("api_config");
+    const snapshot = await docRef.get();
     
-    if (!snapshot.exists()) return null;
+    if (!snapshot.exists) return null;
     
     const data = snapshot.data();
+    if (!data) return null;
+
     const keys = data.elevenlabs_keys || [];
     let currentIndex = data.elevenlabs_index || 0;
 
@@ -62,10 +63,10 @@ const getActiveKeyData = async () => {
 // Helper to switch to the next key in the pool
 const switchToNextKey = async (oldIndex: number) => {
   try {
-    const docRef = doc(db, "settings", "api_config");
+    const docRef = db.collection("settings").doc("api_config");
     // Simple increment. The getActiveKeyData logic handles the modulo/wrapping.
     // Ideally we assume the next one is valid.
-    await updateDoc(docRef, {
+    await docRef.update({
         elevenlabs_index: oldIndex + 1
     });
     console.log(`ElevenLabs: Switched key index from ${oldIndex} to ${oldIndex + 1}`);

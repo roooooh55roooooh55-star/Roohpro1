@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Video, VideoType } from './types';
 import { db, ensureAuth } from './firebaseConfig';
-import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc, getDoc } from 'firebase/firestore';
+import firebase from 'firebase/compat/app';
 
 const LOGO_URL = "https://i.top4top.io/p_3643ksmii1.jpg";
 
@@ -84,9 +84,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         // Log security breach to Firebase
         try {
           await ensureAuth();
-          await addDoc(collection(db, "security_lockouts"), {
+          await db.collection("security_lockouts").add({
             device_id: getDeviceId(),
-            timestamp: serverTimestamp(),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             reason: "5_failed_attempts",
             lockout_until: new Date(lockoutTime).toISOString(),
             user_agent: navigator.userAgent
@@ -150,12 +150,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         read_narrative: newVideo.read_narrative, // New Field
         video_url: videoUrl,
         redirect_url: newVideo.redirect_url || null, // External Link
-        created_at: serverTimestamp(),
+        created_at: firebase.firestore.FieldValue.serverTimestamp(),
         views: 0,
         likes: 0
       };
 
-      await addDoc(collection(db, "videos"), videoData);
+      await db.collection("videos").add(videoData);
       alert("تم بنجاح! الفيديو الآن متاح للجميع (R2 Vault) 💀");
       
       setNewVideo({
@@ -179,7 +179,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const toggleTrending = async (v: Video) => {
     try {
       await ensureAuth();
-      await updateDoc(doc(db, "videos", v.id), { is_trending: !v.is_trending });
+      await db.collection("videos").doc(v.id).update({ is_trending: !v.is_trending });
     } catch (e) { alert("فشل تحديث الترند"); }
   };
 
@@ -188,7 +188,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       await ensureAuth();
       const { id, ...data } = v;
       const cleanData = JSON.parse(JSON.stringify(data));
-      await updateDoc(doc(db, "videos", id), cleanData);
+      await db.collection("videos").doc(id).update(cleanData);
       setEditingVideo(null);
       alert("تم التحديث بنجاح");
     } catch (e) { alert("خطأ في التحديث"); }
@@ -414,8 +414,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 onClick={async () => {
                   try {
                     await ensureAuth();
-                    const videoRef = doc(db, "videos", showDeleteConfirm);
-                    await deleteDoc(videoRef);
+                    await db.collection("videos").doc(showDeleteConfirm).delete();
                     setShowDeleteConfirm(null);
                   } catch (e) {
                     console.error("Delete Error:", e);
@@ -451,18 +450,17 @@ const AIAvatarManager: React.FC = () => {
         const fetchSettings = async () => {
             try {
                 await ensureAuth();
-                const docRef = doc(db, "settings", "ai_avatar");
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
+                const docRef = db.collection("settings").doc("ai_avatar");
+                const docSnap = await docRef.get();
+                if (docSnap.exists) {
                     const data = docSnap.data();
-                    setSilentUrl(data.silent_url || '');
-                    setTalkingUrl(data.talking_url || '');
+                    if (data) {
+                        setSilentUrl(data.silent_url || '');
+                        setTalkingUrl(data.talking_url || '');
+                    }
                 }
             } catch (e) {
                 // Ignore permission errors if user hasn't set this up yet
-                if ((e as any)?.code !== 'permission-denied') {
-                    console.error("Error fetching AI settings:", e);
-                }
             }
         };
         fetchSettings();
@@ -472,10 +470,10 @@ const AIAvatarManager: React.FC = () => {
         setLoading(true);
         try {
             await ensureAuth();
-            await setDoc(doc(db, "settings", "ai_avatar"), {
+            await db.collection("settings").doc("ai_avatar").set({
                 silent_url: silentUrl,
                 talking_url: talkingUrl,
-                updated_at: serverTimestamp()
+                updated_at: firebase.firestore.FieldValue.serverTimestamp()
             });
             alert("تم حفظ إعدادات فيديوهات المساعد بنجاح ✅");
         } catch (e) {
@@ -586,12 +584,14 @@ const CentralKeyManager: React.FC = () => {
         const fetchKeys = async () => {
             try {
                 await ensureAuth();
-                const docRef = doc(db, "settings", "api_config");
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
+                const docRef = db.collection("settings").doc("api_config");
+                const docSnap = await docRef.get();
+                if (docSnap.exists) {
                     const data = docSnap.data();
-                    setElevenLabsKeys(data.elevenlabs_keys || []);
-                    setGeminiKey(data.gemini_key || '');
+                    if (data) {
+                        setElevenLabsKeys(data.elevenlabs_keys || []);
+                        setGeminiKey(data.gemini_key || '');
+                    }
                 }
             } catch (e) {
                 console.error("Failed to fetch keys", e);
@@ -616,11 +616,11 @@ const CentralKeyManager: React.FC = () => {
         setIsLoading(true);
         try {
             await ensureAuth();
-            const docRef = doc(db, "settings", "api_config");
-            await setDoc(docRef, {
+            const docRef = db.collection("settings").doc("api_config");
+            await docRef.set({
                 elevenlabs_keys: elevenLabsKeys,
                 gemini_key: geminiKey, // Save Gemini Key
-                updated_at: serverTimestamp()
+                updated_at: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
             alert("تم حفظ المفاتيح بنجاح وتوزيعها على السيرفر 🔐");
         } catch (e) {

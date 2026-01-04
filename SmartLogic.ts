@@ -1,7 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { ensureAuth, db } from "./firebaseConfig";
-import { doc, getDoc, setDoc } from "firebase/firestore";
 import { Video, UserProfile } from "./types";
 
 export interface ChatMessage {
@@ -37,10 +36,11 @@ class SmartBrainLogic {
   // دالة لجلب مفتاح Gemini من الفايربيس
   private async getGeminiKey(): Promise<string> {
     try {
-      const docRef = doc(db, "settings", "api_config");
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists() && docSnap.data().gemini_key) {
-        return docSnap.data().gemini_key;
+      const docRef = db.collection("settings").doc("api_config");
+      const docSnap = await docRef.get();
+      if (docSnap.exists) {
+        const data = docSnap.data();
+        if (data && data.gemini_key) return data.gemini_key;
       }
     } catch (e) {
       console.warn("Failed to fetch remote Gemini key, falling back to static key.");
@@ -51,9 +51,9 @@ class SmartBrainLogic {
   // جلب الملف الشخصي للمستخدم من الفايربيس
   async getUserProfile(uid: string): Promise<UserProfile> {
       try {
-          const docRef = doc(db, "users", uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
+          const docRef = db.collection("users").doc(uid);
+          const docSnap = await docRef.get();
+          if (docSnap.exists) {
               const data = docSnap.data() as UserProfile;
               if (data.interests && Array.isArray(data.interests)) {
                  // Merge remote interests with local ones
@@ -70,8 +70,8 @@ class SmartBrainLogic {
   // تحديث الملف الشخصي
   async updateUserProfile(uid: string, data: Partial<UserProfile>) {
       try {
-          const docRef = doc(db, "users", uid);
-          await setDoc(docRef, data, { merge: true });
+          const docRef = db.collection("users").doc(uid);
+          await docRef.set(data, { merge: true });
       } catch (e) { console.error("Profile update failed", e); }
   }
 
@@ -142,9 +142,10 @@ class SmartBrainLogic {
             أنتِ "سيدة الحديقة الملعونة" (The Cursed Garden Mistress).
             لستِ مجرد برنامج، أنتِ كيان يسكن هذا التطبيق.
             
-            == مصدر المعلومات (المهم جداً) ==
-            - **المصدر الوحيد للفيديوهات:** هو "الخزنة الحالية" (R2 Vault).
-            - **ممنوع تماماً:** الإشارة لأي مصادر قديمة أو خارجية. كل الفيديوهات هنا حصرية.
+            == مصدر المعلومات (المهم جداً جداً) ==
+            - **المصدر الوحيد للفيديوهات:** هو "الخزنة الحالية" (R2 Vault) التابعة لسيرفراتنا الحالية فقط.
+            - **تنبيه صارم:** لا تقومي أبداً بذكر أو البحث عن أي مصادر قديمة (Cloudinary أو غيره). كل ما يوجد هنا هو من "خزنة R2".
+            - الفيديوهات هنا حصرية، عالية الجودة، وتأتي من مستودعنا الخاص فقط.
             
             == صفاتك ==
             1. **اللهجة:** تتحدثين باللهجة المصرية العامية فقط.
@@ -163,7 +164,7 @@ class SmartBrainLogic {
             1. **الرد القصير:** ردودك لا تتجاوز سطرين أبداً.
             2. **المايكروفون:** دائماً ذكريه باستخدام زر المايكروفون في لوحة المفاتيح (Keyboard Mic).
             3. **تشغيل الفيديوهات:** إذا طلب فيديو، شغليه فوراً (Action: play_video).
-            4. **السرية:** لا تخبري المستخدم من أين تأتي الفيديوهات تقنياً، قولي فقط "من خزنتي الخاصة".
+            4. **السرية:** لا تخبري المستخدم من أين تأتي الفيديوهات تقنياً، قولي فقط "من خزنتي الخاصة" أو "من المستودع".
 
             ${dynamicMicInstruction}
             

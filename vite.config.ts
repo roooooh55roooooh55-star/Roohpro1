@@ -7,7 +7,6 @@ export default defineConfig({
   base: './', 
   define: {
     // هذا السطر يحل مشكلة عدم ظهور المفتاح في المتصفح على Netlify
-    // Added fallback || '' to prevent build crash if env var is undefined
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || '')
   },
   build: {
@@ -15,17 +14,9 @@ export default defineConfig({
     assetsDir: 'assets',
     sourcemap: false,
     minify: 'esbuild',
-    target: 'esnext',
-    rollupOptions: {
-      // Ensure firebase is not treated as external to prevent resolution errors
-      external: [],
-    }
+    target: 'esnext'
   },
   server: {
     historyApiFallback: true,
-  },
-  optimizeDeps: {
-    // Explicitly include firebase packages for Vite optimization
-    include: ['firebase/app', 'firebase/firestore'],
-  },
+  }
 });

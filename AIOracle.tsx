@@ -1,7 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { playNarrative, stopCurrentNarrative, subscribeToAudioState } from './elevenLabsManager';
-import { doc, getDoc } from 'firebase/firestore';
 import { db, ensureAuth } from './firebaseConfig';
 import { SmartBrain, ChatMessage } from './SmartLogic'; // Import SmartBrain
 import { Video, UserInteractions } from './types';
@@ -84,12 +83,14 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
     const fetchAvatarSettings = async () => {
         try {
             await ensureAuth();
-            const docRef = doc(db, "settings", "ai_avatar");
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
+            const docRef = db.collection("settings").doc("ai_avatar");
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
                 const data = docSnap.data();
-                setSilentUrl(data.silent_url || '');
-                setTalkingUrl(data.talking_url || '');
+                if (data) {
+                    setSilentUrl(data.silent_url || '');
+                    setTalkingUrl(data.talking_url || '');
+                }
             }
         } catch (e) {}
     };

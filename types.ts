@@ -3,29 +3,23 @@ export type VideoType = "Shorts" | "Long Video";
 
 export interface Video {
   id: string;
-  // Added: public_id to support Cloudinary resource tracking in AdminDashboard
-  public_id?: string;      
+  public_id?: string;     // Legacy ID (Not used in R2)
   title: string;
   description: string;    // السرد المرعب الذي يظهر تحت العنوان
   category: string;       // الأقسام الثمانية المعتمدة
   is_trending: boolean;   // المسؤول عن ظهور رسمة النار الأصلية
-  // Added: isFeatured used for trending/featured selection logic
-  isFeatured?: boolean;   
+  isFeatured?: boolean;   // Used for trending/featured selection logic
   video_url: string;      // رابط R2 السريع (pub-...)
   video_type: VideoType;  // Shorts أو Long Video
-  // Added: type used as a lowercase variant for layout and player logic
-  type?: 'short' | 'long'; 
+  type?: 'short' | 'long'; // Lowercase variant for layout logic
   redirect_url?: string;  // الرابط الخارجي المخصص للانتقال
-  // Added: external_link alias used in the Admin dashboard editor
-  external_link?: string;  
+  external_link?: string; // External Link alias
   created_at: any;        // Firestore Timestamp or Date object
   likes?: number;
   views?: number;
   poster_url?: string;
-  // Added: tags array for AI-driven categorization and search
-  tags?: string[];
-  // Added: Toggle for reading narrative/title via TTS
-  read_narrative?: boolean;        
+  tags?: string[];        // AI-driven categorization tags
+  read_narrative?: boolean; // Toggle for reading narrative/title via TTS
 }
 
 export interface UserInteractions {

@@ -510,6 +510,11 @@ const MainContent: React.FC<any> = ({
       .filter((v: any) => v !== undefined && v !== null && v.video_url).reverse();
   }, [interactions?.watchHistory, safeVideos]);
 
+  // NEW: Filter specifically for the "Continue Watching" strip to only show Long Videos
+  const continueWatchingList = useMemo(() => {
+    return unfinishedVideos.filter((v: any) => v.video_type === 'Long Video');
+  }, [unfinishedVideos]);
+
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     return safeVideos.filter((v: any) => 
@@ -639,10 +644,10 @@ const MainContent: React.FC<any> = ({
         ))}
       </div>
 
-      {unfinishedVideos.length > 0 && (
+      {continueWatchingList.length > 0 && (
         <>
           <SectionHeader title="نكمل الحكاية" color="bg-purple-500" />
-          <InteractiveMarquee videos={unfinishedVideos} onPlay={(v) => v.video_type === 'Shorts' ? onPlayShort(v, shortsOnly) : onPlayLong(v, longsOnly)} direction="left-to-right" interactions={interactions} />
+          <InteractiveMarquee videos={continueWatchingList} onPlay={(v) => onPlayLong(v, longsOnly)} direction="left-to-right" interactions={interactions} />
         </>
       )}
 

@@ -22,6 +22,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [filterCategory, setFilterCategory] = useState('الكل');
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
   
+  // State for delete confirmation modal
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
   const [newVideo, setNewVideo] = useState({
     title: '',
     description: '',
@@ -119,21 +122,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       await updateDoc(doc(db, "videos", v.id), { is_trending: !v.is_trending });
     } catch (e) { alert("فشل تحديث الترند"); }
-  };
-
-  // Improved Delete Logic with Confirmation
-  const handleDelete = async (id: string) => {
-    if (!id) return;
-    if (!window.confirm("هل أنت متأكد من حذف هذا الفيديو؟ هذا الإجراء لا يمكن التراجع عنه.")) return;
-    
-    try {
-      const videoRef = doc(db, "videos", id);
-      await deleteDoc(videoRef);
-      // alert("✅ تم المسح بنجاح واختفى الفيديو من القائمة"); // Removed alert to prevent interruption, snapshot handles update
-    } catch (e) { 
-      console.error("Delete Error:", e);
-      alert("❌ فشل المسح من السيرفر، يرجى التحقق من الاتصال"); 
-    }
   };
 
   const handleUpdate = async (v: Video) => {
@@ -290,7 +278,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="flex gap-2">
                 <button onClick={() => setEditingVideo(v)} className="flex-1 bg-blue-600/20 text-blue-500 py-2 rounded-lg text-[10px] font-black">تعديل</button>
                 <button onClick={() => toggleTrending(v)} className="flex-1 bg-orange-600/20 text-orange-500 py-2 rounded-lg text-[10px] font-black">رائج</button>
-                <button onClick={() => handleDelete(v.id)} className="flex-1 bg-red-600/20 text-red-500 py-2 rounded-lg text-[10px] font-black">حذف</button>
+                <button onClick={() => setShowDeleteConfirm(v.id)} className="flex-1 bg-red-600/20 text-red-500 py-2 rounded-lg text-[10px] font-black">حذف</button>
               </div>
             </div>
           ))}
@@ -299,6 +287,44 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {editingVideo && (
         <VideoEditor video={editingVideo} categories={categories} onClose={() => setEditingVideo(null)} onSave={handleUpdate} />
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/90 backdrop-blur-md p-6">
+          <div className="bg-neutral-900 border border-red-600/30 p-8 rounded-[2.5rem] w-full max-w-sm text-center shadow-[0_0_50px_rgba(220,38,38,0.2)] animate-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-black text-white mb-2">تأكيد المسح</h3>
+            <p className="text-gray-400 text-sm mb-8 leading-relaxed">هل حذف هذا الفيديو نهائياً؟ .</p>
+            
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={async () => {
+                  try {
+                    const videoRef = doc(db, "videos", showDeleteConfirm);
+                    await deleteDoc(videoRef);
+                    setShowDeleteConfirm(null);
+                  } catch (e) {
+                    console.error("Delete Error:", e);
+                    alert("❌ فشل المسح من السيرفر");
+                  }
+                }}
+                className="w-full bg-red-600 p-4 rounded-2xl text-white font-bold shadow-[0_0_20px_red] active:scale-95 transition-all"
+              >
+                نعم، امسح 
+              </button>
+              <button 
+                onClick={() => setShowDeleteConfirm(null)}
+                className="w-full bg-white/5 p-4 rounded-2xl text-white font-bold border border-white/10 active:scale-95 transition-all"
+              >
+                تراجع
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

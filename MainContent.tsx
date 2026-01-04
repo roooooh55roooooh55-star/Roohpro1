@@ -113,8 +113,9 @@ const VideoCardThumbnail: React.FC<{
   video: Video, 
   isOverlayActive: boolean, 
   interactions: UserInteractions,
-  onLike?: (id: string) => void
-}> = ({ video, isOverlayActive, interactions, onLike }) => {
+  onLike?: (id: string) => void,
+  onCategoryClick?: (category: string) => void
+}> = ({ video, isOverlayActive, interactions, onLike, onCategoryClick }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const stats = useMemo(() => video ? getDeterministicStats(video.video_url) : { views: 0, likes: 0 }, [video?.video_url]);
   
@@ -188,6 +189,20 @@ const VideoCardThumbnail: React.FC<{
       </div>
 
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 z-20 pointer-events-none">
+        {/* Category Badge - Added based on request */}
+        <div className="flex justify-start mb-1">
+          <button 
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              onCategoryClick?.(video.category); 
+            }}
+            className="pointer-events-auto bg-red-600/10 border border-red-600/50 backdrop-blur-md px-2 py-0.5 rounded-[6px] flex items-center gap-1 shadow-[0_0_10px_rgba(220,38,38,0.3)] hover:bg-red-600 hover:text-white transition-all active:scale-90"
+          >
+             <span className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse"></span>
+             <span className="text-[8px] font-black text-red-500 hover:text-white truncate max-w-[80px]">{video.category}</span>
+          </button>
+        </div>
+
         <p className="text-white text-[10px] font-black line-clamp-1 italic text-right leading-tight drop-shadow-[0_2px_4_black]">{video.title}</p>
         
         {/* Stats Display: Distinctive and Elegant */}
@@ -630,7 +645,7 @@ const MainContent: React.FC<any> = ({
       <div className="px-4 grid grid-cols-2 gap-3.5">
         {featuredShorts1.map((v: any) => v && v.video_url && (
           <div key={v.id} onClick={() => onPlayShort(v, shortsOnly)} className="aspect-[9/16] animate-in fade-in duration-500">
-            <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} />
+            <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
           </div>
         ))}
       </div>
@@ -639,7 +654,7 @@ const MainContent: React.FC<any> = ({
       <div className="px-4 space-y-3">
         {featuredLongs1.map((v: any) => v && v.video_url && (
           <div key={v.id} onClick={() => onPlayLong(v, longsOnly)} className="aspect-video w-full animate-in zoom-in-95 duration-500">
-            <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} />
+            <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
           </div>
         ))}
       </div>
@@ -661,7 +676,7 @@ const MainContent: React.FC<any> = ({
       <div className="px-4 grid grid-cols-2 gap-3.5">
         {featuredShorts2.map((v: any) => v && v.video_url && (
           <div key={`${v.id}-2`} onClick={() => onPlayShort(v, shortsOnly)} className="aspect-[9/16] animate-in fade-in duration-500">
-            <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} />
+            <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
           </div>
         ))}
       </div>

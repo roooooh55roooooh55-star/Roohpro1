@@ -67,13 +67,15 @@ const AIOracle: React.FC = () => {
 
   return (
     <>
-      {/* الزر العائم للدخول للمحادثة */}
+      {/* الزر العائم للدخول للمحادثة - بتصميم مبهر جديد */}
       <button 
         onClick={() => setIsOpen(true)} 
-        className="fixed bottom-24 right-6 z-[100] w-14 h-14 bg-red-600 rounded-full shadow-[0_0_20px_rgba(220,38,38,0.8)] border-2 border-red-400 flex items-center justify-center animate-bounce active:scale-90 transition-all"
+        className="fixed bottom-24 right-6 z-[100] w-16 h-16 rounded-full bg-black/40 backdrop-blur-md border-[3px] border-red-600 shadow-[0_0_30px_red,inset_0_0_20px_red] flex items-center justify-center animate-pulse active:scale-90 transition-all group overflow-hidden"
         title="الحديقة المرعبة"
       >
-        <img src="https://i.top4top.io/p_3643ksmii1.jpg" className="w-10 h-10 rounded-full object-cover" alt="AI Avatar" />
+        <div className="absolute inset-0 bg-red-600/20 blur-xl group-hover:bg-red-600/40 transition-all"></div>
+        <img src="https://i.top4top.io/p_3643ksmii1.jpg" className="w-full h-full rounded-full object-cover opacity-90 group-hover:scale-110 transition-transform duration-700" alt="AI Avatar" />
+        <div className="absolute inset-0 rounded-full ring-2 ring-white/20"></div>
       </button>
 
       {/* نافذة المحادثة */}

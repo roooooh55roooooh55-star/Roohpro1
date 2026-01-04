@@ -87,6 +87,8 @@ const App: React.FC = () => {
   }, [rawVideos]);
 
   useEffect(() => {
+    // تسجيل وقت البدء لضمان ظهور اللوجو لمدة ثانية واحدة على الأقل
+    const startLoadTime = Date.now();
     setLoading(true);
     const q = query(collection(db, "videos"), orderBy("created_at", "desc"));
     
@@ -113,11 +115,20 @@ const App: React.FC = () => {
       setRawVideos(validVideos);
       setDisplayVideos(validVideos);
       
+      // بدء التخزين المؤقت الذكي في الخلفية بينما اللوجو ظاهر
       if (validVideos.length > 0) {
         initSmartBuffering(validVideos);
       }
       
-      setLoading(false);
+      // حساب الوقت المنقضي منذ بدء التحميل
+      const elapsedTime = Date.now() - startLoadTime;
+      // ضمان بقاء اللوجو لمدة 1000 مللي ثانية (ثانية واحدة) كحد أدنى
+      const remainingTime = Math.max(0, 1000 - elapsedTime);
+
+      setTimeout(() => {
+        setLoading(false);
+      }, remainingTime);
+
     }, (err) => {
       console.error("Firebase Error:", err);
       setLoading(false);
@@ -347,9 +358,28 @@ const App: React.FC = () => {
       {/* Reduced pt-20 to pt-16 to remove the large gap at the top */}
       <main className="pt-16 pb-24 max-w-md mx-auto px-0">
         {loading ? (
-          <div className="flex flex-col items-center justify-center h-[70vh]">
-            <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-4 text-red-600 font-black animate-pulse text-sm">جاري جلب أهوال جديدة... 💀</p>
+          <div className="flex flex-col items-center justify-center h-[70vh] relative">
+            {/* Ambient Background Glow */}
+            <div className="absolute inset-0 flex items-center justify-center">
+               <div className="w-40 h-40 bg-red-600/20 blur-[50px] rounded-full animate-pulse"></div>
+            </div>
+
+            <div className="relative flex items-center justify-center">
+              {/* Outer Neon Ring - Red */}
+              <div className="absolute w-28 h-28 rounded-full border-t-4 border-b-4 border-red-600 border-l-transparent border-r-transparent animate-spin shadow-[0_0_30px_rgba(220,38,38,0.6)]" style={{ animationDuration: '1.5s' }}></div>
+              
+              {/* Inner Neon Ring - Yellow (Reverse) */}
+              <div className="absolute w-24 h-24 rounded-full border-l-2 border-r-2 border-yellow-500 border-t-transparent border-b-transparent animate-spin shadow-[0_0_20px_rgba(234,179,8,0.6)]" style={{ animationDirection: 'reverse', animationDuration: '2s' }}></div>
+
+              {/* Central Logo */}
+              <div className="relative z-10 w-20 h-20 rounded-full overflow-hidden border-2 border-white/10 shadow-[0_0_50px_rgba(220,38,38,0.8)] animate-pulse">
+                <img 
+                  src="https://i.top4top.io/p_3643ksmii1.jpg" 
+                  className="w-full h-full object-cover opacity-90"
+                  alt="Loading..."
+                />
+              </div>
+            </div>
           </div>
         ) : renderContent()}
       </main>

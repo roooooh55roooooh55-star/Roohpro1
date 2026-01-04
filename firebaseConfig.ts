@@ -5,7 +5,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged, User } from "firebase/a
 
 // بيانات مشروع روح 1 (Rooh1) الرسمية المقدمة من المستخدم
 const firebaseConfig = {
-  apiKey: "AIzaSyCjuQxanRlM3Ef6-vGWtMZowz805DmU0D4",
+  apiKey: "AIzaSyCEF21AZXTjtbPH1MMrflmmwjyM_BHoLco",
   authDomain: "rooh1-b80e6.firebaseapp.com",
   projectId: "rooh1-b80e6",
   storageBucket: "rooh1-b80e6.firebasestorage.app",

@@ -156,7 +156,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       };
 
       await addDoc(collection(db, "videos"), videoData);
-      alert("تم بنجاح! الفيديو الآن متاح للجميع 💀");
+      alert("تم بنجاح! الفيديو الآن متاح للجميع (R2 Vault) 💀");
       
       setNewVideo({
         title: '',
@@ -282,7 +282,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div className="h-20 border-b border-white/10 flex items-center justify-between px-6 bg-black/80 backdrop-blur-xl shrink-0">
         <div className="flex items-center gap-3">
           <img src={LOGO_URL} className="w-10 h-10 rounded-full border-2 border-red-600" />
-          <h1 className="text-lg font-black text-red-600 italic">نظام الرفع - Rooh 1</h1>
+          <h1 className="text-lg font-black text-red-600 italic">نظام الرفع - Rooh 1 (R2)</h1>
         </div>
         <div className="flex gap-2">
             <button 
@@ -316,7 +316,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ) : (
         <div className="flex-1 overflow-y-auto p-4 sm:p-8 pb-32 space-y-8">
             <div className="bg-neutral-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-2xl">
-            <h2 className="text-xs font-black text-red-600 mb-6 uppercase tracking-widest">إضافة كابوس جديد</h2>
+            <h2 className="text-xs font-black text-red-600 mb-6 uppercase tracking-widest">إضافة كابوس جديد (R2 / Direct)</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
                 <input type="text" placeholder="عنوان الفيديو..." value={newVideo.title} onChange={e => setNewVideo({...newVideo, title: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl p-4 text-white font-bold outline-none focus:border-red-600" />
@@ -508,327 +508,203 @@ const AIAvatarManager: React.FC = () => {
             if (type === 'silent') setSilentUrl(url);
             else setTalkingUrl(url);
             setUploadingType(null);
-            setProgress(0);
         }
     };
 
     return (
-        <div className="flex-1 p-6 space-y-8 overflow-y-auto pb-32">
-             <div className="bg-neutral-900/50 border border-purple-500/30 p-8 rounded-[2rem] shadow-[0_0_30px_rgba(168,85,247,0.1)]">
-                 <h2 className="text-xl font-black text-purple-500 mb-6 flex items-center gap-2">
-                     <span className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></span>
-                     إعدادات فيديوهات المساعد (AI Oracle)
-                 </h2>
-                 
-                 <div className="space-y-8">
-                     <div className="space-y-4 border-b border-white/5 pb-8">
-                         <div className="flex items-center justify-between">
-                            <h3 className="text-white font-bold">1. فيديو السكوت (Idle/Silent)</h3>
-                            <span className="text-[10px] text-gray-400">يعمل عندما يكون المساعد صامتاً</span>
-                         </div>
-                         <div className="flex gap-4 items-center">
-                             <input 
-                               type="text" 
-                               value={silentUrl} 
-                               onChange={e => setSilentUrl(e.target.value)} 
-                               placeholder="رابط فيديو السكوت..." 
-                               className="flex-1 bg-black border border-white/10 rounded-xl p-4 text-white outline-none focus:border-purple-500"
-                             />
-                             <div className="flex flex-col gap-1">
-                                <label className="bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl p-3 cursor-pointer text-white font-bold text-xs whitespace-nowrap text-center">
-                                    {uploadingType === 'silent' ? `${progress}%` : 'تغيير/رفع'}
-                                    <input type="file" accept="video/*" className="hidden" onChange={(e) => handleFileChange(e, 'silent')} />
+        <div className="flex-1 overflow-y-auto p-8 pb-32 space-y-8">
+            <div className="bg-neutral-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-2xl">
+                <h2 className="text-xs font-black text-purple-500 mb-6 uppercase tracking-widest">مظهر المساعد الشخصي</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Silent Video */}
+                    <div className="space-y-4">
+                        <h3 className="text-white font-bold">فيديو الصمت (Silent Loop)</h3>
+                        <div className="aspect-square bg-black rounded-2xl border-2 border-white/10 overflow-hidden relative group">
+                            {silentUrl ? (
+                                <video src={silentUrl} className="w-full h-full object-cover" autoPlay loop muted />
+                            ) : (
+                                <div className="absolute inset-0 flex items-center justify-center text-gray-600">No Video</div>
+                            )}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <label className="cursor-pointer bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-white font-bold border border-white/20">
+                                    تغيير
+                                    <input type="file" className="hidden" accept="video/*" onChange={(e) => handleFileChange(e, 'silent')} />
                                 </label>
-                                {silentUrl && (
-                                   <button 
-                                      onClick={() => { if(window.confirm('مسح فيديو السكوت؟')) setSilentUrl(''); }}
-                                      className="bg-red-600/20 hover:bg-red-600/40 border border-red-600/30 rounded-xl p-2 text-red-500 font-bold text-[10px]"
-                                   >
-                                      مسح
-                                   </button>
-                                )}
-                             </div>
-                         </div>
-                     </div>
+                            </div>
+                            {uploadingType === 'silent' && (
+                                <div className="absolute inset-0 bg-black/80 flex items-center justify-center flex-col z-20">
+                                    <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mb-2"></div>
+                                    <span className="text-white text-xs">{progress}%</span>
+                                </div>
+                            )}
+                        </div>
+                        <input type="text" value={silentUrl} onChange={(e) => setSilentUrl(e.target.value)} placeholder="أو ضع رابط مباشر هنا..." className="w-full bg-black border border-white/10 rounded-xl p-3 text-xs text-white" />
+                    </div>
 
-                     <div className="space-y-4">
-                         <div className="flex items-center justify-between">
-                            <h3 className="text-white font-bold">2. فيديو الكلام (Talking/Active)</h3>
-                            <span className="text-[10px] text-gray-400">يعمل فقط عند نطق الصوت</span>
-                         </div>
-                         <div className="flex gap-4 items-center">
-                             <input 
-                               type="text" 
-                               value={talkingUrl} 
-                               onChange={e => setTalkingUrl(e.target.value)} 
-                               placeholder="رابط فيديو الكلام..." 
-                               className="flex-1 bg-black border border-white/10 rounded-xl p-4 text-white outline-none focus:border-purple-500"
-                             />
-                             <div className="flex flex-col gap-1">
-                                <label className="bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl p-3 cursor-pointer text-white font-bold text-xs whitespace-nowrap text-center">
-                                    {uploadingType === 'talking' ? `${progress}%` : 'تغيير/رفع'}
-                                    <input type="file" accept="video/*" className="hidden" onChange={(e) => handleFileChange(e, 'talking')} />
+                    {/* Talking Video */}
+                    <div className="space-y-4">
+                        <h3 className="text-white font-bold">فيديو التحدث (Talking Loop)</h3>
+                        <div className="aspect-square bg-black rounded-2xl border-2 border-white/10 overflow-hidden relative group">
+                            {talkingUrl ? (
+                                <video src={talkingUrl} className="w-full h-full object-cover" autoPlay loop muted />
+                            ) : (
+                                <div className="absolute inset-0 flex items-center justify-center text-gray-600">No Video</div>
+                            )}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <label className="cursor-pointer bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-white font-bold border border-white/20">
+                                    تغيير
+                                    <input type="file" className="hidden" accept="video/*" onChange={(e) => handleFileChange(e, 'talking')} />
                                 </label>
-                                {talkingUrl && (
-                                   <button 
-                                      onClick={() => { if(window.confirm('مسح فيديو الكلام؟')) setTalkingUrl(''); }}
-                                      className="bg-red-600/20 hover:bg-red-600/40 border border-red-600/30 rounded-xl p-2 text-red-500 font-bold text-[10px]"
-                                   >
-                                      مسح
-                                   </button>
-                                )}
-                             </div>
-                         </div>
-                     </div>
+                            </div>
+                            {uploadingType === 'talking' && (
+                                <div className="absolute inset-0 bg-black/80 flex items-center justify-center flex-col z-20">
+                                    <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mb-2"></div>
+                                    <span className="text-white text-xs">{progress}%</span>
+                                </div>
+                            )}
+                        </div>
+                        <input type="text" value={talkingUrl} onChange={(e) => setTalkingUrl(e.target.value)} placeholder="أو ضع رابط مباشر هنا..." className="w-full bg-black border border-white/10 rounded-xl p-3 text-xs text-white" />
+                    </div>
+                </div>
 
-                     <button 
-                       onClick={handleSaveUrls} 
-                       disabled={loading}
-                       className="w-full bg-purple-600 py-4 rounded-xl font-black text-white shadow-[0_0_15px_purple] hover:shadow-[0_0_25px_purple] active:scale-95 transition-all disabled:opacity-50 mt-8"
-                     >
-                         {loading ? "جاري الحفظ..." : "حفظ الإعدادات"}
-                     </button>
-                 </div>
-             </div>
+                <button onClick={handleSaveUrls} disabled={loading} className="w-full mt-8 bg-purple-600 hover:bg-purple-700 py-4 rounded-xl font-black text-white shadow-xl active:scale-95 disabled:opacity-50 transition-all">
+                    {loading ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                </button>
+            </div>
         </div>
     );
 };
 
-const VideoEditor: React.FC<{ video: Video, categories: string[], onClose: () => void, onSave: (v: Video) => void }> = ({ video, categories, onClose, onSave }) => {
-  const [v, setV] = useState<Video>({ ...video });
-  return (
-    <div className="fixed inset-0 z-[1100] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6" dir="rtl">
-      <div className="bg-neutral-900 border border-white/10 w-full max-w-lg rounded-[2.5rem] p-8 space-y-6">
-        <h2 className="text-xl font-black text-red-600 italic">تعديل البيانات</h2>
-        <div className="space-y-4">
-          <input type="text" value={v.title} onChange={e => setV({...v, title: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl p-4 text-white" />
-          <textarea value={v.description} onChange={e => setV({...v, description: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl p-4 text-white min-h-[100px]" />
-          <div className="grid grid-cols-2 gap-4">
-            <select value={v.category} onChange={e => setV({...v, category: e.target.value})} className="bg-black border border-white/10 rounded-xl p-4 text-red-500 font-bold">
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select value={v.video_type} onChange={e => setV({...v, video_type: e.target.value as VideoType})} className="bg-black border border-white/10 rounded-xl p-4 text-white">
-              <option value="Shorts">Shorts</option>
-              <option value="Long Video">Long Video</option>
-            </select>
-          </div>
-          <input type="text" value={v.redirect_url || ''} onChange={e => setV({...v, redirect_url: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl p-4 text-white" />
-        </div>
-        <div className="flex gap-4">
-          <button onClick={() => onSave(v)} className="flex-1 bg-red-600 py-4 rounded-xl font-black text-white">حفظ التغييرات</button>
-          <button onClick={onClose} className="flex-1 bg-neutral-800 py-4 rounded-xl font-black text-white">إلغاء</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- Updated Component: Central Key Manager (Gemini + ElevenLabs Pool) ---
 const CentralKeyManager: React.FC = () => {
-    const [geminiKey, setGeminiKey] = useState('');
     const [elevenLabsKeys, setElevenLabsKeys] = useState<string[]>([]);
-    const [elevenLabsIndex, setElevenLabsIndex] = useState(0);
-    const [newELKey, setNewELKey] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [newKey, setNewKey] = useState('');
+    const [geminiKey, setGeminiKey] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        const fetchConfig = async () => {
+        const fetchKeys = async () => {
             try {
                 await ensureAuth();
                 const docRef = doc(db, "settings", "api_config");
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    setGeminiKey(data.gemini_key || '');
                     setElevenLabsKeys(data.elevenlabs_keys || []);
-                    setElevenLabsIndex(data.elevenlabs_index || 0);
+                    setGeminiKey(data.gemini_key || '');
                 }
             } catch (e) {
-                console.error("Failed to load config", e);
+                console.error("Failed to fetch keys", e);
             }
         };
-        fetchConfig();
+        fetchKeys();
     }, []);
 
-    const saveGeminiKey = async () => {
-        setLoading(true);
-        try {
-            await ensureAuth();
-            const docRef = doc(db, "settings", "api_config");
-            await setDoc(docRef, { gemini_key: geminiKey }, { merge: true });
-            alert("تم حفظ مفتاح Gemini بنجاح ✅");
-        } catch (e) {
-            alert("حدث خطأ أثناء الحفظ");
-        } finally {
-            setLoading(false);
+    const handleAddKey = () => {
+        if (newKey.trim()) {
+            setElevenLabsKeys([...elevenLabsKeys, newKey.trim()]);
+            setNewKey('');
         }
     };
 
-    const addELKey = async () => {
-        if (!newELKey.trim()) return;
-        const updatedKeys = [...elevenLabsKeys, newELKey.trim()];
-        setLoading(true);
-        try {
-            await ensureAuth();
-            const docRef = doc(db, "settings", "api_config");
-            await setDoc(docRef, { elevenlabs_keys: updatedKeys }, { merge: true });
-            setElevenLabsKeys(updatedKeys);
-            setNewELKey('');
-        } catch (e) {
-            alert("حدث خطأ");
-        } finally {
-            setLoading(false);
-        }
+    const handleRemoveKey = (index: number) => {
+        const updated = elevenLabsKeys.filter((_, i) => i !== index);
+        setElevenLabsKeys(updated);
     };
 
-    const removeELKey = async (index: number) => {
-        if (!window.confirm("حذف هذا المفتاح نهائياً؟")) return;
-        
-        const updatedKeys = elevenLabsKeys.filter((_, i) => i !== index);
-        // Reset index safely
-        let newIndex = elevenLabsIndex;
-        if (index < elevenLabsIndex) newIndex--; // If removed one before active, decrement
-        if (newIndex >= updatedKeys.length) newIndex = 0;
-        
-        setLoading(true);
+    const handleSave = async () => {
+        setIsLoading(true);
         try {
             await ensureAuth();
             const docRef = doc(db, "settings", "api_config");
-            await setDoc(docRef, { 
-                elevenlabs_keys: updatedKeys,
-                elevenlabs_index: newIndex
+            await setDoc(docRef, {
+                elevenlabs_keys: elevenLabsKeys,
+                gemini_key: geminiKey, // Save Gemini Key
+                updated_at: serverTimestamp()
             }, { merge: true });
-            setElevenLabsKeys(updatedKeys);
-            setElevenLabsIndex(newIndex);
+            alert("تم حفظ المفاتيح بنجاح وتوزيعها على السيرفر 🔐");
         } catch (e) {
-            alert("حدث خطأ");
+            alert("فشل الحفظ");
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
-    };
-
-    const maskKey = (key: string) => {
-        if (!key || key.length < 10) return "****";
-        return `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
-    };
-
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        alert("تم نسخ المفتاح (خفي) ✅");
-    };
-
-    const getKeyStatus = (idx: number) => {
-        if (idx < elevenLabsIndex) return { label: "منتهي/تجاوز", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500" };
-        if (idx === elevenLabsIndex) return { label: "نشط حالياً", color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500" };
-        return { label: "في الانتظار", color: "text-gray-400", bg: "bg-gray-800", border: "border-gray-700" };
     };
 
     return (
-        <div className="flex-1 p-6 space-y-8 overflow-y-auto pb-32">
-             {/* Gemini Section */}
-             <div className="bg-neutral-900/50 border border-blue-500/30 p-8 rounded-[2rem] shadow-[0_0_30px_rgba(59,130,246,0.1)]">
-                 <h2 className="text-xl font-black text-blue-500 mb-6 flex items-center gap-2">
-                     <span className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></span>
-                     مفتاح العقل المدبر (Gemini AI)
-                 </h2>
-                 <div className="flex gap-4">
-                     <input 
-                       type="password" 
-                       value={geminiKey} 
-                       onChange={e => setGeminiKey(e.target.value)} 
-                       placeholder="الصق مفتاح Gemini هنا (AIza...)" 
-                       className="flex-1 bg-black border border-white/10 rounded-xl p-4 text-white font-mono outline-none focus:border-blue-500 placeholder:text-gray-700"
-                     />
-                     <button 
-                       onClick={saveGeminiKey}
-                       disabled={loading}
-                       className="bg-blue-600 px-6 py-4 rounded-xl font-bold text-white shadow-[0_0_15px_blue] active:scale-95 transition-all"
-                     >
-                         {geminiKey ? "تحديث" : "حفظ"}
-                     </button>
-                 </div>
-                 {geminiKey && (
-                     <div className="mt-4 flex items-center gap-2 text-xs text-blue-400 font-bold bg-blue-900/20 w-fit px-3 py-1 rounded-full border border-blue-500/30">
-                         <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                         مفتاح محفوظ ومتصل بالنظام
-                     </div>
-                 )}
-             </div>
+        <div className="flex-1 overflow-y-auto p-8 pb-32 space-y-8">
+            <div className="bg-neutral-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-2xl">
+                <h2 className="text-xs font-black text-green-500 mb-6 uppercase tracking-widest">مفاتيح API المركزية</h2>
+                
+                {/* Gemini AI Key Section */}
+                <div className="mb-8 p-4 rounded-2xl bg-black/40 border border-white/5">
+                    <h3 className="text-white font-bold mb-2 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        Gemini AI Key (Google)
+                    </h3>
+                    <input 
+                        type="text" 
+                        value={geminiKey} 
+                        onChange={(e) => setGeminiKey(e.target.value)} 
+                        placeholder="AIzaSy..."
+                        className="w-full bg-black border border-white/10 rounded-xl p-3 text-xs text-green-400 font-mono"
+                    />
+                    <p className="text-[9px] text-gray-500 mt-2">هذا المفتاح يستخدم لذكاء "سيدة الحديقة".</p>
+                </div>
 
-             {/* ElevenLabs Section */}
-             <div className="bg-neutral-900/50 border border-green-500/30 p-8 rounded-[2rem] shadow-[0_0_30px_rgba(34,197,94,0.1)]">
-                 <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 className="text-xl font-black text-green-500 flex items-center gap-2">
-                            <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-                            مفاتيح الصوت (ElevenLabs Pool)
-                        </h2>
-                        <p className="text-[10px] text-gray-500 mt-1">يتم التدوير تلقائياً عند انتهاء رصيد المفتاح الحالي.</p>
+                {/* ElevenLabs Keys Section */}
+                <div className="space-y-4">
+                    <h3 className="text-white font-bold flex items-center gap-2">
+                        <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                        ElevenLabs Keys (Audio)
+                    </h3>
+                    
+                    <div className="flex gap-2">
+                        <input 
+                            type="text" 
+                            value={newKey} 
+                            onChange={(e) => setNewKey(e.target.value)} 
+                            placeholder="sk_..." 
+                            className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs text-white font-mono"
+                        />
+                        <button onClick={handleAddKey} className="bg-green-600 px-4 rounded-xl font-bold text-white text-xs hover:bg-green-700">+</button>
                     </div>
-                    <span className="text-[10px] bg-green-900/30 text-green-400 px-3 py-1 rounded-full border border-green-500/30 font-mono">
-                        Current Active Index: {elevenLabsIndex}
-                    </span>
-                 </div>
-                 
-                 <div className="flex gap-4 mb-8">
-                     <input 
-                       type="text" 
-                       value={newELKey} 
-                       onChange={e => setNewELKey(e.target.value)} 
-                       placeholder="أضف مفتاح جديد (sk_...)" 
-                       className="flex-1 bg-black border border-white/10 rounded-xl p-4 text-white font-mono outline-none focus:border-green-500"
-                     />
-                     <button 
-                       onClick={addELKey}
-                       disabled={loading || !newELKey}
-                       className="bg-green-600 px-6 py-4 rounded-xl font-bold text-white shadow-[0_0_15px_green] active:scale-95 transition-all whitespace-nowrap"
-                     >
-                         + إضافة للقائمة
-                     </button>
-                 </div>
 
-                 <div className="space-y-3">
-                     {elevenLabsKeys.map((k, idx) => {
-                         const status = getKeyStatus(idx);
-                         return (
-                             <div key={idx} className={`p-4 rounded-xl flex items-center justify-between border transition-colors ${status.bg} ${status.border} ${idx === elevenLabsIndex ? 'shadow-[0_0_15px_rgba(34,197,94,0.2)]' : ''}`}>
-                                 <div className="flex items-center gap-4">
-                                     <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold bg-black text-white border border-white/10`}>
-                                         {idx + 1}
-                                     </span>
-                                     <div className="flex flex-col">
-                                         <span className="text-sm font-mono text-white tracking-widest font-bold">
-                                             {maskKey(k)}
-                                         </span>
-                                         <span className={`text-[9px] font-black uppercase tracking-widest mt-1 ${status.color}`}>
-                                             {status.label}
-                                         </span>
-                                     </div>
-                                 </div>
-                                 <div className="flex gap-2">
-                                     <button 
-                                       onClick={() => copyToClipboard(k)}
-                                       className="text-gray-400 hover:text-white p-2 rounded-lg bg-black/40 hover:bg-white/10 transition-colors"
-                                       title="نسخ المفتاح"
-                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                     </button>
-                                     <button 
-                                       onClick={() => removeELKey(idx)} 
-                                       className="text-red-500 hover:text-red-400 p-2 rounded-lg bg-red-600/10 hover:bg-red-600/20 transition-colors"
-                                       title="حذف"
-                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                     </button>
-                                 </div>
-                             </div>
-                         );
-                     })}
-                     {elevenLabsKeys.length === 0 && <p className="text-center text-gray-600 text-sm py-4 italic">لم تتم إضافة أي مفاتيح بعد.</p>}
-                 </div>
-             </div>
+                    <div className="space-y-2 mt-4 max-h-60 overflow-y-auto pr-2">
+                        {elevenLabsKeys.map((key, idx) => (
+                            <div key={idx} className="flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5">
+                                <span className="text-[10px] font-mono text-gray-300 truncate max-w-[200px]">{key.substring(0, 10)}...{key.substring(key.length - 5)}</span>
+                                <button onClick={() => handleRemoveKey(idx)} className="text-red-500 hover:text-red-400 text-xs font-bold px-2">حذف</button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <button onClick={handleSave} disabled={isLoading} className="w-full mt-8 bg-green-600 hover:bg-green-700 py-4 rounded-xl font-black text-white shadow-[0_0_20px_rgba(22,163,74,0.3)] active:scale-95 disabled:opacity-50 transition-all">
+                    {isLoading ? 'جاري التحديث...' : 'حفظ وتعميم المفاتيح'}
+                </button>
+            </div>
         </div>
     );
+};
+
+const VideoEditor: React.FC<{ video: Video, categories: string[], onClose: () => void, onSave: (v: Video) => void }> = ({ video, categories, onClose, onSave }) => {
+  const [data, setData] = useState(video);
+  return (
+    <div className="fixed inset-0 z-[950] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-neutral-900 border border-white/10 p-6 rounded-[2rem] w-full max-w-lg shadow-2xl animate-in zoom-in duration-300 space-y-4">
+        <h3 className="text-white font-black text-lg">تعديل: {video.title}</h3>
+        <input type="text" value={data.title} onChange={e => setData({...data, title: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl p-3 text-white" placeholder="العنوان" />
+        <textarea value={data.description} onChange={e => setData({...data, description: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl p-3 text-white h-24" placeholder="الوصف" />
+        <select value={data.category} onChange={e => setData({...data, category: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl p-3 text-white">
+           {categories.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <div className="flex gap-2">
+          <button onClick={() => onSave(data)} className="flex-1 bg-green-600 py-3 rounded-xl text-white font-bold">حفظ</button>
+          <button onClick={onClose} className="flex-1 bg-white/10 py-3 rounded-xl text-white font-bold">إلغاء</button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default AdminDashboard;

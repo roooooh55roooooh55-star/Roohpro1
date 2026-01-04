@@ -37,6 +37,13 @@ export interface UserInteractions {
   downloadedIds: string[];
 }
 
+export interface UserProfile {
+    name?: string;
+    gender?: 'male' | 'female';
+    interests?: string[];
+    last_voice_limit_hit?: number; // Timestamp
+}
+
 export enum AppView {
   HOME = 'home',
   TREND = 'trend',

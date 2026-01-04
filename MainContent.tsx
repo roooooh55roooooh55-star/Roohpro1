@@ -636,7 +636,9 @@ const MainContent: React.FC<any> = ({
              <h1 className="text-sm font-black italic text-red-600 transition-colors duration-500">الحديقة المرعبة</h1>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        
+        {/* ACTION BUTTONS GROUP - Shifted slightly to the left with -translate-x-2 */}
+        <div className="flex items-center gap-3 -translate-x-2">
           {syncStatus && (
             <div className="flex flex-col items-center">
               <span className="text-[8px] font-black text-cyan-400 animate-pulse">مزامنة {syncStatus.current}/{syncStatus.total}</span>

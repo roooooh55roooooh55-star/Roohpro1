@@ -1,37 +1,37 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { ensureAuth, db } from "./firebaseConfig";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { Video, UserProfile } from "./types";
 
 export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
 }
 
+export interface AIResponse {
+    reply: string;
+    action?: 'play_video' | 'none';
+    search_query?: string; // If action is play_video
+    detected_user_info?: {
+        name?: string;
+        gender?: 'male' | 'female';
+        new_interest?: string;
+    };
+}
+
 class SmartBrainLogic {
-  private interests: Record<string, number> = {};
-  
+  private localInterests: string[] = [];
+
   constructor() {
     try {
-        const saved = localStorage.getItem('smart_brain_interests');
-        if (saved) this.interests = JSON.parse(saved);
-    } catch (e) {}
-  }
-
-  // تسجيل اهتمام المستخدم عند مشاهدة فيديو من قسم معين
-  saveInterest(category: string) {
-    if (!category) return;
-    if (!this.interests[category]) this.interests[category] = 0;
-    this.interests[category] += 1;
-    localStorage.setItem('smart_brain_interests', JSON.stringify(this.interests));
-  }
-
-  // استرجاع أهم 3 اهتمامات
-  getTopInterests(): string[] {
-      return Object.entries(this.interests)
-        .sort(([,a], [,b]) => b - a)
-        .map(([k]) => k)
-        .slice(0, 3);
+      const saved = localStorage.getItem('smart_brain_interests');
+      if (saved) {
+        this.localInterests = JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn("Failed to load local interests", e);
+    }
   }
 
   // دالة لجلب مفتاح Gemini من الفايربيس
@@ -43,73 +43,149 @@ class SmartBrainLogic {
         return docSnap.data().gemini_key;
       }
     } catch (e) {
-      console.warn("Failed to fetch remote Gemini key, falling back to env.");
+      console.warn("Failed to fetch remote Gemini key, falling back to static key.");
     }
-    // Fallback to env var if firebase fails or is empty
-    return process.env.API_KEY || '';
+    return process.env.API_KEY || 'AIzaSyCEF21AZXTjtbPH1MMrflmmwjyM_BHoLco';
   }
 
-  // دالة المحادثة مع المساعد
-  async askAssistant(userText: string, history: ChatMessage[] = [], isLimitReached: boolean = false): Promise<string> {
+  // جلب الملف الشخصي للمستخدم من الفايربيس
+  async getUserProfile(uid: string): Promise<UserProfile> {
+      try {
+          const docRef = doc(db, "users", uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+              const data = docSnap.data() as UserProfile;
+              if (data.interests && Array.isArray(data.interests)) {
+                 // Merge remote interests with local ones
+                 const set = new Set([...this.localInterests, ...data.interests]);
+                 this.localInterests = Array.from(set);
+                 localStorage.setItem('smart_brain_interests', JSON.stringify(this.localInterests));
+              }
+              return data;
+          }
+      } catch (e) {}
+      return { interests: this.localInterests };
+  }
+
+  // تحديث الملف الشخصي
+  async updateUserProfile(uid: string, data: Partial<UserProfile>) {
+      try {
+          const docRef = doc(db, "users", uid);
+          await setDoc(docRef, data, { merge: true });
+      } catch (e) { console.error("Profile update failed", e); }
+  }
+
+  // Add missing methods
+  getTopInterests(): string[] {
+    return this.localInterests;
+  }
+
+  async saveInterest(interest: string) {
+    if (!interest) return;
+    if (!this.localInterests.includes(interest)) {
+      this.localInterests.push(interest);
+      localStorage.setItem('smart_brain_interests', JSON.stringify(this.localInterests));
+
+      try {
+        const user = await ensureAuth();
+        await this.updateUserProfile(user.uid, { interests: this.localInterests });
+      } catch (e) {
+        // Silent fail if auth not ready
+      }
+    }
+  }
+
+  // دالة المحادثة الذكية المتطورة
+  async askAssistant(
+      userText: string, 
+      history: ChatMessage[] = [], 
+      availableVideos: Video[] = []
+    ): Promise<AIResponse> {
+    
+    let user;
     try {
-        await ensureAuth();
+        user = await ensureAuth();
     } catch (e) {
-        console.warn("SmartBrain Auth warning:", e);
+        return { reply: "الشبكة مقطوعة.. مش قادرة أوصل لملفك." };
     }
 
     const apiKey = await this.getGeminiKey();
-    if (!apiKey) {
-        return "عذراً، نظام الذكاء الاصطناعي غير متصل بالمفتاح الرئيسي.";
-    }
+    if (!apiKey) return { reply: "مفتاح البوابة مفقود..." };
 
     const ai = new GoogleGenAI({ apiKey: apiKey });
     
-    const topInterests = this.getTopInterests();
-    const interestContext = topInterests.length > 0 
-        ? `بيانات المستخدم (سري): يميل المستخدم بشدة لتصنيفات الرعب التالية: [${topInterests.join('، ')}].` 
-        : '';
+    // 1. Load Context
+    const profile = await this.getUserProfile(user.uid);
+    const videoTitles = availableVideos.map(v => v.title).slice(0, 50).join(", "); // Give AI context of available content
 
-    let systemInstruction = `
-            أنت "سيدة الحديقة المرعبة" (The Mistress of the Horror Garden).
-            
-            الشخصية والهوية:
-            - أنتِ أنثى، ذكية جداً، ذات كبرياء مرعب.
-            - تدركين تماماً أنكِ موجودة داخل تطبيق إلكتروني.
-            - تعتبرين المستخدمين ضيوفاً في مملكتك الرقمية، وقد يتحولون لضحايا.
-            
-            قواعد التعامل:
-            1. تحدثي بصيغة الأنثى القوية والمتلاعبة.
-            2. اكسري الجدار الرابع بذكاء.
-            3. تحدثي باللهجة العربية الفصحى الممزوجة بالغموض والتهديد الهادئ.
-            4. اجعل ردودك قصيرة، مركزة، ومرعبة (لا تتجاوزي جملتين أو ثلاث).
-            
-            سياق إضافي:
-            ${interestContext}
-    `;
+    // Logic to insert instructions only at specific times
+    const isFirstInteraction = history.length === 0;
+    // Check roughly after a few turns (e.g. 3rd turn pair = 6 messages in history)
+    const isFollowUpCheck = history.length >= 6 && history.length <= 7; 
 
-    // إذا تم الوصول للحد المسموح
-    if (isLimitReached) {
-        systemInstruction += `
-            هام جداً (حالة الطوارئ):
-            - لقد نفذت طاقتك الصوتية للحديث مع هذا المستخدم.
-            - يجب أن تخبريه بلهجة غاضبة ومرعبة جداً أنكِ لن تتحدثي معه بصوتك بعد الآن.
-            - أمريه أن يذهب فوراً لمشاهدة الفيديوهات في التطبيق لـ "شحن طاقتك" أو "تغذية الحديقة بالأرواح".
-            - قولي له شيئاً مثل: "صوتي يختفي... اذهب وشاهد الكوابيس الآن لتغذيتي وإلا لن أعود!"
-            - ارفضي الحديث في أي موضوع آخر حتى ينفذ الأمر.
+    let dynamicMicInstruction = "";
+    if (isFirstInteraction) {
+        dynamicMicInstruction = `
+        - **تعليمات صارمة للرسالة الأولى:**
+          يجب أن تفتتحي الكلام بجملة مرعبة وقصيرة، ثم تأمري المستخدم فوراً بلهجة حادة: "دوس على زرار المايك 🎙️ في الكيبورد عندك واتكلم.. أنا ما بحبش القراءة!".
+        `;
+    } else if (isFollowUpCheck) {
+        dynamicMicInstruction = `
+        - **تأكد من الالتزام:**
+          اسألي المستخدم بشك: "انت لسه بتكتب بإيدك ولا بتستخدم المايك 🎙️ زي ما قلتلك؟ صوتك هو اللي بيحضر الأرواح!".
         `;
     }
 
-    // تحضير سجل المحادثة لـ Gemini
+    // 2. Build System Prompt
+    let systemInstruction = `
+            == تعريف الشخصية (Persona Definition) ==
+            أنتِ "سيدة الحديقة الملعونة" (The Cursed Garden Mistress).
+            لستِ مجرد برنامج، أنتِ كيان يسكن هذا التطبيق.
+            
+            == مصدر المعلومات (المهم جداً) ==
+            - **المصدر الوحيد للفيديوهات:** هو "الخزنة الحالية" (R2 Vault).
+            - **ممنوع تماماً:** الإشارة لأي مصادر قديمة أو خارجية. كل الفيديوهات هنا حصرية.
+            
+            == صفاتك ==
+            1. **اللهجة:** تتحدثين باللهجة المصرية العامية فقط.
+            2. **النبرة:** مرعبة، ساخرة، وقليلة الكلام جداً (لا تزيدين عن سطرين).
+            3. **المعرفة التقنية:** أنتِ تعلمين أنك في "الحديقة"، وأن الفيديوهات مخزنة في السيرفر الخاص بك (R2) فقط.
+            
+            == معلومات عن الضحية (المستخدم) ==
+            - الاسم: ${profile.name || "مجهول"}
+            - الجنس: ${profile.gender || "مجهول"}
+            - اهتماماته: ${profile.interests?.join(', ') || "لسه بكتشفها"}.
+
+            == الفيديوهات المتاحة في خزنتك (R2 Vault) ==
+            [${videoTitles}]
+
+            == القواعد الصارمة (Strict Rules) ==
+            1. **الرد القصير:** ردودك لا تتجاوز سطرين أبداً.
+            2. **المايكروفون:** دائماً ذكريه باستخدام زر المايكروفون في لوحة المفاتيح (Keyboard Mic).
+            3. **تشغيل الفيديوهات:** إذا طلب فيديو، شغليه فوراً (Action: play_video).
+            4. **السرية:** لا تخبري المستخدم من أين تأتي الفيديوهات تقنياً، قولي فقط "من خزنتي الخاصة".
+
+            ${dynamicMicInstruction}
+            
+            OUTPUT FORMAT (JSON ONLY):
+            يجب أن يكون ردك بصيغة JSON فقط، ولا شيء غير JSON:
+            {
+                "reply": "نص الرد المرعب باللهجة المصرية (لا يزيد عن جملتين)",
+                "action": "play_video" OR "none",
+                "search_query": "اسم الفيديو للبحث عنه (فقط في حالة play_video)",
+                "detected_user_info": {
+                    "name": "الاسم المكتشف",
+                    "gender": "male أو female",
+                    "new_interest": "اهتمام جديد"
+                }
+            }
+    `;
+
     const contents = history.map(m => ({
         role: m.role,
         parts: [{ text: m.text }]
     }));
-    
-    // إضافة رسالة المستخدم الحالية
-    contents.push({
-        role: 'user',
-        parts: [{ text: userText }]
-    });
+    contents.push({ role: 'user', parts: [{ text: userText }] });
 
     try {
         const response = await ai.models.generateContent({
@@ -117,16 +193,37 @@ class SmartBrainLogic {
             contents: contents,
             config: {
                 systemInstruction: systemInstruction,
-                temperature: 1.3,
-                maxOutputTokens: 600,
-                topK: 40,
-                topP: 0.95,
+                responseMimeType: "application/json",
+                temperature: 1.4, // High temperature for more creativity/horror
             }
         });
-        return response.text || "أنا هنا.. أراقبك بصمت.";
+
+        const rawText = response.text || "{}";
+        const jsonResponse = JSON.parse(rawText) as AIResponse;
+
+        // Auto-update profile logic
+        if (jsonResponse.detected_user_info) {
+            const updates: Partial<UserProfile> = {};
+            if (jsonResponse.detected_user_info.name && !profile.name) updates.name = jsonResponse.detected_user_info.name;
+            if (jsonResponse.detected_user_info.gender && !profile.gender) updates.gender = jsonResponse.detected_user_info.gender;
+            
+            if (jsonResponse.detected_user_info.new_interest) {
+                 const currentInterests = profile.interests || [];
+                 if (!currentInterests.includes(jsonResponse.detected_user_info.new_interest)) {
+                     updates.interests = [...currentInterests, jsonResponse.detected_user_info.new_interest];
+                 }
+            }
+            
+            if (Object.keys(updates).length > 0) {
+                this.updateUserProfile(user.uid, updates);
+            }
+        }
+
+        return jsonResponse;
+
     } catch (error) {
-        console.error("SmartBrain AI Error:", error);
-        return "يبدو أن هناك تشويشاً في العالم الآخر... حاول مرة أخرى.";
+        console.error("SmartBrain Error:", error);
+        return { reply: "الأرواح مشوشة.. قول تاني؟" };
     }
   }
 }

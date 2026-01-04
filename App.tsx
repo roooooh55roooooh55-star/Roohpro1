@@ -460,7 +460,15 @@ const App: React.FC = () => {
       </main>
 
       <Suspense fallback={null}>
-        <AIOracle onRefresh={handleManualRefresh} />
+        <AIOracle 
+          onRefresh={handleManualRefresh} 
+          allVideos={rawVideos} 
+          interactions={interactions}
+          onPlayVideo={(v) => v.type === 'short' 
+              ? playShortVideo(v, rawVideos.filter(rv => rv.type === 'short')) 
+              : playLongVideo(v, rawVideos.filter(rv => rv.type === 'long'))
+          }
+        />
       </Suspense>
 
       {selectedShort && (

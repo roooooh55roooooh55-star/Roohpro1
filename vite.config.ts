@@ -7,7 +7,8 @@ export default defineConfig({
   base: './', 
   define: {
     // هذا السطر يحل مشكلة عدم ظهور المفتاح في المتصفح على Netlify
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
+    // Added fallback || '' to prevent build crash if env var is undefined
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || '')
   },
   build: {
     outDir: 'dist',

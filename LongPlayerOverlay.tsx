@@ -1,8 +1,8 @@
 
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { Video } from './types.ts';
-import { incrementViewsInDB } from './supabaseClient.ts';
-import { getDeterministicStats, formatBigNumber, LOGO_URL, InteractiveMarquee, NeonTrendBadge } from './MainContent.tsx';
+import { Video } from './types';
+import { incrementViewsInDB } from './supabaseClient';
+import { getDeterministicStats, formatBigNumber, LOGO_URL, InteractiveMarquee, NeonTrendBadge } from './MainContent';
 
 interface LongPlayerOverlayProps {
   video: Video;

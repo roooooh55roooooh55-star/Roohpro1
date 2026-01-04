@@ -1,24 +1,24 @@
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
-import { Video, AppView, UserInteractions } from './types.ts';
-import { db } from './firebaseConfig.ts';
+import { Video, AppView, UserInteractions } from './types';
+import { db } from './firebaseConfig';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import AppBar from './AppBar.tsx';
-import MainContent from './MainContent.tsx';
-import { downloadVideoWithProgress, removeVideoFromCache } from './offlineManager.ts';
-import { initSmartBuffering } from './smartCache.ts';
+import AppBar from './AppBar';
+import MainContent from './MainContent';
+import { downloadVideoWithProgress, removeVideoFromCache } from './offlineManager';
+import { initSmartBuffering } from './smartCache';
 
-const ShortsPlayerOverlay = lazy(() => import('./ShortsPlayerOverlay.tsx'));
-const LongPlayerOverlay = lazy(() => import('./LongPlayerOverlay.tsx'));
-const AdminDashboard = lazy(() => import('./AdminDashboard.tsx'));
-const AIOracle = lazy(() => import('./AIOracle.tsx'));
-const TrendPage = lazy(() => import('./TrendPage.tsx'));
-const SavedPage = lazy(() => import('./SavedPage.tsx'));
-const PrivacyPage = lazy(() => import('./PrivacyPage.tsx'));
-const HiddenVideosPage = lazy(() => import('./HiddenVideosPage.tsx'));
-const CategoryPage = lazy(() => import('./CategoryPage.tsx'));
-const OfflinePage = lazy(() => import('./OfflinePage.tsx'));
-const UnwatchedPage = lazy(() => import('./UnwatchedPage.tsx'));
+const ShortsPlayerOverlay = lazy(() => import('./ShortsPlayerOverlay'));
+const LongPlayerOverlay = lazy(() => import('./LongPlayerOverlay'));
+const AdminDashboard = lazy(() => import('./AdminDashboard'));
+const AIOracle = lazy(() => import('./AIOracle'));
+const TrendPage = lazy(() => import('./TrendPage'));
+const SavedPage = lazy(() => import('./SavedPage'));
+const PrivacyPage = lazy(() => import('./PrivacyPage'));
+const HiddenVideosPage = lazy(() => import('./HiddenVideosPage'));
+const CategoryPage = lazy(() => import('./CategoryPage'));
+const OfflinePage = lazy(() => import('./OfflinePage'));
+const UnwatchedPage = lazy(() => import('./UnwatchedPage'));
 
 // 1. التصنيفات الرسمية الـ 8 (يجب كتابتها حرفياً)
 export const OFFICIAL_CATEGORIES = [

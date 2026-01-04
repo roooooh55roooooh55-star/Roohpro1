@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { Video, UserInteractions } from './types.ts';
-import { downloadVideoWithProgress } from './offlineManager.ts';
+import { Video, UserInteractions } from './types';
+import { downloadVideoWithProgress } from './offlineManager';
 
 export const LOGO_URL = "https://i.top4top.io/p_3643ksmii1.jpg";
 

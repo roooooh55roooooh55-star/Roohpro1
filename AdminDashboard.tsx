@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Video, VideoType } from './types';
-import { db } from './firebaseConfig.ts';
+import { db } from './firebaseConfig';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 
 const LOGO_URL = "https://i.top4top.io/p_3643ksmii1.jpg";
